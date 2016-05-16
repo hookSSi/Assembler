@@ -2,9 +2,13 @@ package Assembler;
 
 import java.awt.event.*;
 import java.awt.*;
+import java.io.*;
 
 import javax.swing.*;
 import javax.swing.GroupLayout.Alignment;
+import javax.swing.filechooser.FileNameExtensionFilter;
+
+import javafx.stage.FileChooser;
 
 class TAB
 {
@@ -121,38 +125,114 @@ class MainWindow implements ActionListener
 		}
 		if(e.getSource() == m_Open)
 		{
-			m_FileDialog.Load();
+			try
+			{
+				m_FileDialog.Load(m_FileTextArea);
+			}
+			catch (IOException e1)
+			{
+				System.out.println("Cannot Load File");
+			}
 		}
 		if(e.getSource() == m_Save)
 		{
 			m_FileDialog.Save();
 		}
 	}
+
+	void ReadFileLine()	//	Read File Line by Line
+	{
+
+
+
+	}
 }
 
 class FileDialogWindow extends JFrame
 {
-	FileDialog load;
-	FileDialog save;
+	JFileChooser  load;
+	JFileChooser  save;
+	FileNameExtensionFilter filter;
 
-	public void Load()
+	public void Load(JTextArea p_FileTextArea) throws IOException
 	{
-		load = new FileDialog(this, "Open File");
-
+		filter = new FileNameExtensionFilter("Text File","txt");
+		load = new JFileChooser();
+		load.setCurrentDirectory(new File("C:/Users/mit-com-2/Desktop/Assembler"));	//	Set Default Load Location
 		load.setVisible(true);
-		load.setBounds(0, 0, 500, 400);
-		System.out.println("Folder Address : " + load.getDirectory());
-		System.out.println("File name : " + load.getFile());
+		load.setAcceptAllFileFilterUsed(false);
+		load.addChoosableFileFilter(filter);
+
+
+		int result = load.showOpenDialog(this);
+
+		if(result ==  JFileChooser.APPROVE_OPTION)
+		{
+			File  selectedFile = load.getSelectedFile();
+			System.out.println("Folder Address : " + selectedFile.getAbsolutePath());
+			System.out.println("File name : " + selectedFile.getName());
+
+			FileInputStream in = null;
+
+			try
+			{
+				in = new FileInputStream(selectedFile);
+
+				int c;
+				while( (c = in.read()) != -1)
+				{
+					p_FileTextArea.setText(p_FileTextArea.getText() + (char)c);
+				}
+			}
+			catch(Exception e)
+			{
+				System.out.println("Cannot Load File");
+			}
+			finally
+			{
+				if(in != null)
+				{
+					in.close();
+				}
+			}
+		}
 	}
 
 	public void Save()
 	{
-		save = new FileDialog(this, "Save File", FileDialog.SAVE);
+		save = new JFileChooser();
+		save.setCurrentDirectory(new File("C:/Users/mit-com-2/Desktop/Assembler"));	//	Set Default Load Location
 		save.setVisible(true);
-		save.setBounds(0, 0, 500, 400);
+		save.setAcceptAllFileFilterUsed(false);
+		save.addChoosableFileFilter(filter);
+
 	}
 }
 
+/*
+class TextFrame extends JFrame implements ActionListener
+{
+	JButton b;
+
+	TextFrame()
+	{
+		b = new JButton();
+		b.setSize(250,250);
+		b.addActionListener(this);
+
+		this.setVisible(true);
+		this.setLayeredPane(null);
+		this.setSize(300, 300);
+	}
+
+	public void actionPerformed(ActionEvent e)
+	{
+		if(e.getSource() == b)
+		{
+			return new Color();
+		}
+	}
+}*/
 
 /*	Main	*/
 public class ASEM
@@ -190,31 +270,5 @@ public class ASEM
 	static public void main(String[] args) //throws IOException
 	{
 		new MainWindow();
-
-		/*FileInputStream in = null;
-		FileOutputStream out = null;
-
-		try
-		{
-			in = new FileInputStream("input.txt");
-			out = new FileOutputStream("output.txt");
-
-			int c;
-			while((c = in.read()) != -1)
-			{
-				out.write(c);
-			}
-		}
-		finally
-		{
-			if(in != null)
-			{
-				in.close();
-			}
-			if(out != null)
-			{
-				out.close();
-			}
-		}*/
 	}
 }
