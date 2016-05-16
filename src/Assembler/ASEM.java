@@ -121,6 +121,7 @@ class MainWindow implements ActionListener
 	{
 		if(e.getSource() == m_TransButton)
 		{
+			ReadFileLine();
 			System.out.println("Assemble");
 		}
 		if(e.getSource() == m_Open)
@@ -143,8 +144,6 @@ class MainWindow implements ActionListener
 	void ReadFileLine()	//	Read File Line by Line
 	{
 
-
-
 	}
 }
 
@@ -158,7 +157,7 @@ class FileDialogWindow extends JFrame
 	{
 		filter = new FileNameExtensionFilter("Text File","txt");
 		load = new JFileChooser();
-		load.setCurrentDirectory(new File("C:/Users/mit-com-2/Desktop/Assembler"));	//	Set Default Load Location
+		load.setCurrentDirectory(new File("user.home"));	//	Set Default Load Location
 		load.setVisible(true);
 		load.setAcceptAllFileFilterUsed(false);
 		load.addChoosableFileFilter(filter);
@@ -238,33 +237,38 @@ class TextFrame extends JFrame implements ActionListener
 public class ASEM
 {
 		/*	Operation Table	*/
-		static OPT[] OPTAB = new OPT[]
-			{
-					new OPT("ADD",0x18),new OPT("ADDF",0x58),new OPT("ADDR",0x90),
-					new OPT("AND",0x40),new OPT("CLEAR",0xB4),new OPT("COMP",0x28),
-					new OPT("COMPF",0x88),new OPT("COMPR",0xA0),new OPT("DIV",0x24),
-					new OPT("DIVF",0x64),new OPT("DIVR",0x64),new OPT("FIX",0xC4),
-					new OPT("FLOAT",0xC0),new OPT("HIO",0xF4),new OPT("J",0x3C),
-					new OPT("JEQ",0x30),new OPT("JGT",0x34),new OPT("JLT",0x38),
-					new OPT("JSUB",0x48),new OPT("LDA",0x00),new OPT("LDB",0x68),
-					new OPT("LDCH",0x50),new OPT("LDF",0x70),new OPT("LDL",0x08),
-					new OPT("LDS",0x6C),new OPT("LDT",0x74),new OPT("LDX",0x04),
-					new OPT("LPS",0xD0),new OPT("MUL",0x20),new OPT("MULF",0x60),
-					new OPT("MULR",0x98),new OPT("NORM",0xC8),new OPT("OR",0x44),
-					new OPT("RD",0xD8),new OPT("RMO",0xAC),new OPT("RSUB",0x4C),
-					new OPT("SHIFTL",0xA4),new OPT("SHIFTR",0xA8),new OPT("SIO",0xF0),
-					new OPT("SSK",0xEC),new OPT("STA",0x0C),new OPT("STB",0x78),
-					new OPT("STCH",0x54),new OPT("STF",0x80),new OPT("STI",0xD4),
-					new OPT("STL",0x14),new OPT("STS",0x7C),new OPT("STSW",0xE8),
-					new OPT("STT",0x84),new OPT("STX",0x10),new OPT("SUB",0x1C),
-					new OPT("SUBF",0x5C),new OPT("SUBR",0x94),new OPT("SVC",0xB0),
-					new OPT("TD",0xE0),new OPT("TIO",0xF8),new OPT("TIX",0x2C),
-					new OPT("TIXR",0xB8),new OPT("WD",0xDC)
-			};
+	static OPT[] OPTAB = new OPT[]
+		{
+				new OPT("ADD",0x18),new OPT("ADDF",0x58),new OPT("ADDR",0x90),
+				new OPT("AND",0x40),new OPT("CLEAR",0xB4),new OPT("COMP",0x28),
+				new OPT("COMPF",0x88),new OPT("COMPR",0xA0),new OPT("DIV",0x24),
+				new OPT("DIVF",0x64),new OPT("DIVR",0x64),new OPT("FIX",0xC4),
+				new OPT("FLOAT",0xC0),new OPT("HIO",0xF4),new OPT("J",0x3C),
+				new OPT("JEQ",0x30),new OPT("JGT",0x34),new OPT("JLT",0x38),
+				new OPT("JSUB",0x48),new OPT("LDA",0x00),new OPT("LDB",0x68),
+				new OPT("LDCH",0x50),new OPT("LDF",0x70),new OPT("LDL",0x08),
+				new OPT("LDS",0x6C),new OPT("LDT",0x74),new OPT("LDX",0x04),
+				new OPT("LPS",0xD0),new OPT("MUL",0x20),new OPT("MULF",0x60),
+				new OPT("MULR",0x98),new OPT("NORM",0xC8),new OPT("OR",0x44),
+				new OPT("RD",0xD8),new OPT("RMO",0xAC),new OPT("RSUB",0x4C),
+				new OPT("SHIFTL",0xA4),new OPT("SHIFTR",0xA8),new OPT("SIO",0xF0),
+				new OPT("SSK",0xEC),new OPT("STA",0x0C),new OPT("STB",0x78),
+				new OPT("STCH",0x54),new OPT("STF",0x80),new OPT("STI",0xD4),
+				new OPT("STL",0x14),new OPT("STS",0x7C),new OPT("STSW",0xE8),
+				new OPT("STT",0x84),new OPT("STX",0x10),new OPT("SUB",0x1C),
+				new OPT("SUBF",0x5C),new OPT("SUBR",0x94),new OPT("SVC",0xB0),
+				new OPT("TD",0xE0),new OPT("TIO",0xF8),new OPT("TIX",0x2C),
+				new OPT("TIXR",0xB8),new OPT("WD",0xDC)
+		};
 
 	/*	Symbol Table	*/
 	static TAB[] Table;
 
+	int Scnt = 0;
+	int Locctr = 0;
+	int ENDval = 0;
+	int Errorflag = 0;
+	int length = 10; // Read character 10
 
 
 	static public void main(String[] args) //throws IOException
