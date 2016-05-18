@@ -9,6 +9,7 @@ import javax.swing.GroupLayout.Alignment;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import javafx.stage.FileChooser;
+import java.util.StringTokenizer;
 
 class TAB
 {
@@ -76,6 +77,7 @@ class MainWindow implements ActionListener
 		/*	File Input Area	*/
 		m_FileTextArea = new JTextArea();
 		m_FileTextArea.setBounds(0,0,300,300);
+		m_FileTextArea.setColumns(30);
 		m_FileTextArea.setLineWrap(true);
 		m_FileTextScroll = new JScrollPane(m_FileTextArea,
     ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
@@ -90,7 +92,6 @@ class MainWindow implements ActionListener
     ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
     ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		m_TransTextScroll.setBounds(5, 600, 410, 400);
-		m_TransTextScroll.setLayout(null);
 
 		m_TransButton = new JButton("Assemble");
 		m_TransButton.setBounds(150,500,100,50);
@@ -140,10 +141,17 @@ class MainWindow implements ActionListener
 			m_FileDialog.Save();
 		}
 	}
-
 	void ReadFileLine()	//	Read File Line by Line
 	{
-
+		m_TransTextArea.setText("");
+		int count = 0;
+		StringTokenizer Token = new StringTokenizer(m_FileTextArea.getText());
+		while(Token.hasMoreTokens())
+		{
+			count++;
+			m_TransTextArea.setText(m_TransTextArea.getText() + Token.nextToken() + "\n");
+		}
+			
 	}
 }
 
@@ -171,16 +179,17 @@ class FileDialogWindow extends JFrame
 			System.out.println("Folder Address : " + selectedFile.getAbsolutePath());
 			System.out.println("File name : " + selectedFile.getName());
 
-			FileInputStream in = null;
+			BufferedReader in = null;
 
 			try
 			{
-				in = new FileInputStream(selectedFile);
-
-				int c;
-				while( (c = in.read()) != -1)
+				in = new BufferedReader(new FileReader(selectedFile));
+				p_FileTextArea.setText("");
+				
+				String s = null;
+				while( (s = in.readLine()) != null)
 				{
-					p_FileTextArea.setText(p_FileTextArea.getText() + (char)c);
+					p_FileTextArea.setText(p_FileTextArea.getText() + s + '\n');
 				}
 			}
 			catch(Exception e)

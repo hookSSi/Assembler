@@ -1,3 +1,5 @@
+LABEL    OPCODE   OPERAND           COMMENTS
+-----------------------------------------------------------------------------------------------------
 COPY     START    0                 COPY FILE FROM INPUT TO OUTPUT
 FIRST    STL      RETADR            SAVE RETURN ADDRESS
          LDB     #LENGTH            ESTABLISH BASE REGISTER
