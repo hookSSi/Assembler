@@ -9,7 +9,7 @@ import javax.swing.GroupLayout.Alignment;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import javafx.stage.FileChooser;
-import java.util.StringTokenizer;
+import java.util.*;
 
 class TAB
 {
@@ -17,18 +17,25 @@ class TAB
 	int value;
 }
 
-class OPT
+
+class StaticThigs
 {
-	final String m_Mnemonic;
-	final int m_Opcode;
+	/*	Operation Table	*/
+	public static Hashtable OpTable = new Hashtable();
 
-	OPT(String p_Mnemonic, int p_Opcode)
+	/*	Symbol Table	*/
+	public static Hashtable Table = new Hashtable();
+
+
+	public static int LOCCTR; 	// Address Counter
+	public static int StartAddress; // Start Address
+	public static int BaseAddress; // Base Address
+	public static int Errorflag;
+
+	public void Clear()
 	{
-		m_Mnemonic = p_Mnemonic; m_Opcode = p_Opcode;
+		Table = null;
 	}
-
-	public String GetMnemonic(){return m_Mnemonic;}
-	public int GetOpcode(){return m_Opcode;}
 }
 
 /*	UI	control	*/
@@ -118,14 +125,15 @@ class MainWindow implements ActionListener
 		m_MainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	}
 
-	public void actionPerformed(ActionEvent e)
+	public void actionPerformed(ActionEvent e) //	input manager
 	{
-		if(e.getSource() == m_TransButton)
+		if(e.getSource() == m_TransButton)	//	Assemble Button
 		{
-			ReadFileLine();
+			//ReadFileLine();
 			System.out.println("Assemble");
+			System.out.println(StaticThigs.OpTable.get(0));
 		}
-		if(e.getSource() == m_Open)
+		if(e.getSource() == m_Open)	//	Open Source File
 		{
 			try
 			{
@@ -141,17 +149,58 @@ class MainWindow implements ActionListener
 			m_FileDialog.Save();
 		}
 	}
-	void ReadFileLine()	//	Read File Line by Line
+	void ReadFileLine()	//	Read File Line
 	{
+		/*	Variable to read line	`*/
+		int lineCount = m_FileTextArea.getLineCount();
+		String line = new String();
+
+		/*	Varialbe for Pass1	*/
 		m_TransTextArea.setText("");
-		int count = 0;
-		StringTokenizer Token = new StringTokenizer(m_FileTextArea.getText());
-		while(Token.hasMoreTokens())
+		String Label = new String();
+		String OPCODE= new String();
+		String PARAMETER = new String();
+
+		try
 		{
-			count++;
-			m_TransTextArea.setText(m_TransTextArea.getText() + Token.nextToken() + "\n");
+			for(int i = 0; i < lineCount; i++)
+			{
+				int start = m_FileTextArea.getLineStartOffset(i);
+
+				line = m_FileTextArea.getText(start, start + 35);
+
+				StringTokenizer Token = new StringTokenizer(line);
+				
+				while(Token.hasMoreTokens())
+				{
+					if(Token.countTokens() == 3)
+					{
+						Label = Token.nextToken();
+					}
+					OPCODE = Token.nextToken();
+					PARAMETER = Token.nextToken();
+					
+					if(OPCODE == "START")
+					{
+						StaticThigs.LOCCTR = PARAMETER;
+					}
+
+				}
+			}
+
 		}
-			
+		catch(Exception e)
+		{
+
+		}
+	}
+
+	void Pass1()
+	{
+		StaticThigs.LOCCTR = 0;
+		StaticThigs.StartAddress = 0;
+		StaticThigs.BaseAddress = 0;
+		StaticThigs.Errorflag = 0;
 	}
 }
 
@@ -185,7 +234,7 @@ class FileDialogWindow extends JFrame
 			{
 				in = new BufferedReader(new FileReader(selectedFile));
 				p_FileTextArea.setText("");
-				
+
 				String s = null;
 				while( (s = in.readLine()) != null)
 				{
@@ -245,43 +294,30 @@ class TextFrame extends JFrame implements ActionListener
 /*	Main	*/
 public class ASEM
 {
-		/*	Operation Table	*/
-	static OPT[] OPTAB = new OPT[]
-		{
-				new OPT("ADD",0x18),new OPT("ADDF",0x58),new OPT("ADDR",0x90),
-				new OPT("AND",0x40),new OPT("CLEAR",0xB4),new OPT("COMP",0x28),
-				new OPT("COMPF",0x88),new OPT("COMPR",0xA0),new OPT("DIV",0x24),
-				new OPT("DIVF",0x64),new OPT("DIVR",0x64),new OPT("FIX",0xC4),
-				new OPT("FLOAT",0xC0),new OPT("HIO",0xF4),new OPT("J",0x3C),
-				new OPT("JEQ",0x30),new OPT("JGT",0x34),new OPT("JLT",0x38),
-				new OPT("JSUB",0x48),new OPT("LDA",0x00),new OPT("LDB",0x68),
-				new OPT("LDCH",0x50),new OPT("LDF",0x70),new OPT("LDL",0x08),
-				new OPT("LDS",0x6C),new OPT("LDT",0x74),new OPT("LDX",0x04),
-				new OPT("LPS",0xD0),new OPT("MUL",0x20),new OPT("MULF",0x60),
-				new OPT("MULR",0x98),new OPT("NORM",0xC8),new OPT("OR",0x44),
-				new OPT("RD",0xD8),new OPT("RMO",0xAC),new OPT("RSUB",0x4C),
-				new OPT("SHIFTL",0xA4),new OPT("SHIFTR",0xA8),new OPT("SIO",0xF0),
-				new OPT("SSK",0xEC),new OPT("STA",0x0C),new OPT("STB",0x78),
-				new OPT("STCH",0x54),new OPT("STF",0x80),new OPT("STI",0xD4),
-				new OPT("STL",0x14),new OPT("STS",0x7C),new OPT("STSW",0xE8),
-				new OPT("STT",0x84),new OPT("STX",0x10),new OPT("SUB",0x1C),
-				new OPT("SUBF",0x5C),new OPT("SUBR",0x94),new OPT("SVC",0xB0),
-				new OPT("TD",0xE0),new OPT("TIO",0xF8),new OPT("TIX",0x2C),
-				new OPT("TIXR",0xB8),new OPT("WD",0xDC)
-		};
-
-	/*	Symbol Table	*/
-	static TAB[] Table;
-
-	int Scnt = 0;
-	int Locctr = 0;
-	int ENDval = 0;
-	int Errorflag = 0;
-	int length = 10; // Read character 10
-
-
 	static public void main(String[] args) //throws IOException
 	{
+		/*	Operation Table	*/
+		StaticThigs.OpTable.put("ADD",0x18);StaticThigs.OpTable.put("ADDF",0x58);StaticThigs.OpTable.put("ADDR",0x90);
+		StaticThigs.OpTable.put("AND",0x40);StaticThigs.OpTable.put("CLEAR",0xB4);StaticThigs.OpTable.put("COMP",0x28);
+		StaticThigs.OpTable.put("COMPF",0x88);StaticThigs.OpTable.put("COMPR",0xA0);StaticThigs.OpTable.put("DIV",0x24);
+		StaticThigs.OpTable.put("DIVF",0x64);StaticThigs.OpTable.put("DIVR",0x64);StaticThigs.OpTable.put("FIX",0xC4);
+		StaticThigs.OpTable.put("FLOAT",0xC0);StaticThigs.OpTable.put("HIO",0xF4);StaticThigs.OpTable.put("J",0x3C);
+		StaticThigs.OpTable.put("JEQ",0x30);StaticThigs.OpTable.put("JGT",0x34);StaticThigs.OpTable.put("JLT",0x38);
+		StaticThigs.OpTable.put("JSUB",0x48);StaticThigs.OpTable.put("LDA",0x00);StaticThigs.OpTable.put("LDB",0x68);
+		StaticThigs.OpTable.put("LDCH",0x50);StaticThigs.OpTable.put("LDF",0x70);StaticThigs.OpTable.put("LDL",0x08);
+		StaticThigs.OpTable.put("LDS",0x6C);StaticThigs.OpTable.put("LDT",0x74);StaticThigs.OpTable.put("LDX",0x04);
+		StaticThigs.OpTable.put("LPS",0xD0);StaticThigs.OpTable.put("MUL",0x20);StaticThigs.OpTable.put("MULF",0x60);
+		StaticThigs.OpTable.put("MULR",0x98);StaticThigs.OpTable.put("NORM",0xC8);StaticThigs.OpTable.put("OR",0x44);
+		StaticThigs.OpTable.put("RD",0xD8);StaticThigs.OpTable.put("RMO",0xAC);StaticThigs.OpTable.put("RSUB",0x4C);
+		StaticThigs.OpTable.put("SHIFTL",0xA4);StaticThigs.OpTable.put("SHIFTR",0xA8);StaticThigs.OpTable.put("SIO",0xF0);
+		StaticThigs.OpTable.put("SSK",0xEC);StaticThigs.OpTable.put("STA",0x0C);StaticThigs.OpTable.put("STB",0x78);
+		StaticThigs.OpTable.put("STCH",0x54);StaticThigs.OpTable.put("STF",0x80);StaticThigs.OpTable.put("STI",0xD4);
+		StaticThigs.OpTable.put("STL",0x14);StaticThigs.OpTable.put("STS",0x7C);StaticThigs.OpTable.put("STSW",0xE8);
+		StaticThigs.OpTable.put("STT",0x84);StaticThigs.OpTable.put("STX",0x10);StaticThigs.OpTable.put("SUB",0x1C);
+		StaticThigs.OpTable.put("SUBF",0x5C);StaticThigs.OpTable.put("SUBR",0x94);StaticThigs.OpTable.put("SVC",0xB0);
+		StaticThigs.OpTable.put("TD",0xE0);StaticThigs.OpTable.put("TIO",0xF8);StaticThigs.OpTable.put("TIX",0x2C);
+		StaticThigs.OpTable.put("TIXR",0xB8);StaticThigs.OpTable.put("WD",0xDC);
+
 		new MainWindow();
 	}
 }
