@@ -13,6 +13,8 @@ class power
 	public int GetA(){return a;}
 }
 
+
+
 public class Test 
 {
 	public static void main(String[] args)
@@ -28,6 +30,6 @@ public class Test
 		if(OpTable.containsKey("Tes2t"))
 			System.out.println(p2.a);*/
 		
-		System.out.println(Integer.parseInt(new String("1\n").trim()));
+		System.out.println(Integer.parseInt("1000",16));
 	}
 }

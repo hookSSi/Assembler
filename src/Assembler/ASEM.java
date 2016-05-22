@@ -31,7 +31,7 @@ class OPTAB
 	public int GetExt(){return oplength+ext;}
 }
 
-class StaticThigs
+class StaticThings
 {
 	/*	Operation Table	*/
 	public static Hashtable OpTable = new Hashtable();
@@ -42,14 +42,21 @@ class StaticThigs
 
 
 	public static int LOCCTR; 	// Address Counter
-	public static String ProgramName;
+	public static String ProgramName = null;
 	public static int StartAddress; // Start Address
+	public static int EndAddress;
 	public static int BaseAddress; // Base Address
 	public static int Errorflag;
 
-	public void Clear()
+	public void Clear() // Clear to assemble again
 	{
-		Table = null;
+		Table = new Hashtable();
+		LOCCTR = 0;
+		ProgramName = new String();
+		StartAddress = 0;
+		EndAddress = 0;
+		BaseAddress = 0;
+		Errorflag = 0;
 	}
 }
 
@@ -71,7 +78,7 @@ class MainWindow implements ActionListener
 	FileDialogWindow m_FileDialog;
 
 	Dimension m_MonitorSize = Toolkit.getDefaultToolkit().getScreenSize();
-	
+
 	MainWindow()
 	{
 		m_FileDialog = new FileDialogWindow();
@@ -99,8 +106,7 @@ class MainWindow implements ActionListener
 		/*	File Input Area	*/
 		m_FileTextArea = new JTextArea();
 		m_FileTextArea.setBounds(0,0,300,300);
-		m_FileTextArea.setColumns(30);
-		m_FileTextArea.setLineWrap(true);
+		m_FileTextArea.setEditable(false);
 		m_FileTextScroll = new JScrollPane(m_FileTextArea,
     ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
     ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
@@ -144,8 +150,8 @@ class MainWindow implements ActionListener
 	{
 		if(e.getSource() == m_TransButton)	//	Assemble Button
 		{
-			
 			Pass1();
+			Pass2();
 			System.out.println("Assemble");
 		}
 		if(e.getSource() == m_Open)	//	Open Source File
@@ -167,10 +173,9 @@ class MainWindow implements ActionListener
 	void Pass1()
 	{
 		/*	Clear Before reading	*/
-		StaticThigs.LOCCTR = 0;
-		StaticThigs.StartAddress = 0;
-		StaticThigs.BaseAddress = 0;
-		StaticThigs.Errorflag = 0;
+		StaticThings.LOCCTR = 0;
+		StaticThings.StartAddress = 0;
+		StaticThings.Errorflag = 0;
 
 		/*	Variable to read line	`*/
 		int lineCount = m_FileTextArea.getLineCount();
@@ -182,7 +187,7 @@ class MainWindow implements ActionListener
 		String LABEL = new String();
 		String OPCODE= new String();
 		String OPERAND = new String();
-		
+
 		try
 		{
 			for(int i = 0; i < lineCount; i++)
@@ -194,10 +199,10 @@ class MainWindow implements ActionListener
 
 				Token = new StringTokenizer(GetPartOfString(line)," ");
 				LABEL = null; OPCODE = null; OPERAND = null;
-								
-				
-				
-				if(StaticThigs.Table.get("START") == null)
+
+
+
+				if(StaticThings.Table.get("START") == null)
 				{
 					if(Token.countTokens() == 3)
 					{
@@ -207,24 +212,30 @@ class MainWindow implements ActionListener
 						OPCODE = Token.nextToken();
 					if(Token.hasMoreTokens())
 						OPERAND = Token.nextToken();
-					
+
 					if(OPCODE.equals("START"))	// Find START
 					{
 						if(IsStringInt(OPERAND))
 						{
-							Integer stringtoint = Integer.parseInt(OPERAND);
-							StaticThigs.LOCCTR = stringtoint;
-							StaticThigs.StartAddress = stringtoint;
-							StaticThigs.ProgramName = LABEL;
-							StaticThigs.Table.put("START", LABEL);
+							Integer stringtoint = Integer.parseInt(OPERAND,16);
+							StaticThings.LOCCTR = stringtoint;
+							StaticThings.StartAddress = stringtoint;
+							StaticThings.Table.put("START", LABEL);
+							if(LABEL.trim().length() < 6)
+							{
+								int temp = 6 - LABEL.trim().length();
+								for(int j = 0; j < temp; j++)
+									LABEL += " ";
+							}
+							StaticThings.ProgramName = LABEL;
 						}
 						else
 						{
-							StaticThigs.Errorflag = -1;	// Parameter Error
+							StaticThings.Errorflag = -1;	// Parameter Error
 						}
 					}
 				}
-				else if(StaticThigs.Table.get("START") != null)
+				else if(StaticThings.Table.get("START") != null)
 				{
 					if(Token.countTokens() == 3)
 					{
@@ -234,80 +245,81 @@ class MainWindow implements ActionListener
 						OPCODE = Token.nextToken();
 					if(Token.hasMoreTokens())
 						OPERAND = Token.nextToken();
-					
+
 					if(OPCODE != null || !OPCODE.equals("."))
 					{
 						if(OPCODE.equals("END"))
 						{
+							StaticThings.EndAddress = StaticThings.LOCCTR;
 							return;
 						}
 						else
-						{							
-							if(LABEL != null && StaticThigs.Table.containsKey(LABEL))
+						{
+							/*	Symbol code handle	*/
+							if(LABEL != null && StaticThings.Table.containsKey(LABEL))
 							{
-								StaticThigs.Errorflag = -1;
+								StaticThings.Errorflag = -1;
 							}
-							else if(LABEL != null && !StaticThigs.Table.containsKey(LABEL))
+							else if(LABEL != null && !StaticThings.Table.containsKey(LABEL))
 							{
-								StaticThigs.Table.put(LABEL, StaticThigs.LOCCTR);	 // input LABEL to Symbol Table
-								System.out.print(LABEL + "\t");
-								System.out.format("%X%n", StaticThigs.Table.get(LABEL));
+								StaticThings.Table.put(LABEL, StaticThings.LOCCTR);	 // input LABEL to Symbol Table
+								System.out.println(LABEL + "\t" + GetDecToHex((int)StaticThings.Table.get(LABEL)));
 							}
 							/*	Operation code Handle	*/
-							if(OPCODE.charAt(0) == '+' && StaticThigs.OpTable.containsKey(OPCODE.substring(1))) // Format 4
+							if(OPCODE.charAt(0) == '+' && StaticThings.OpTable.containsKey(OPCODE.substring(1))) // Format 4
 							{
-								OPTAB temp = (OPTAB)StaticThigs.OpTable.get(OPCODE.substring(1));
-								StaticThigs.LOCCTR += temp.oplength + 1;
+								OPTAB temp = (OPTAB)StaticThings.OpTable.get(OPCODE.substring(1));
+								StaticThings.LOCCTR += temp.oplength + 1;
 							}
-							else if(StaticThigs.OpTable.containsKey(OPCODE))	// Format 3
+							else if(StaticThings.OpTable.containsKey(OPCODE))	// Format 3
 							{
-								OPTAB temp = (OPTAB)StaticThigs.OpTable.get(OPCODE);
-								StaticThigs.LOCCTR += temp.oplength;
+								OPTAB temp = (OPTAB)StaticThings.OpTable.get(OPCODE);
+								StaticThings.LOCCTR += temp.oplength;
 							}
 							/* Directive Handle	*/
-							else if(StaticThigs.DirectTable.containsKey(OPCODE))
+							else if(StaticThings.DirectTable.containsKey(OPCODE))
 							{
 								if(OPCODE.equals("RESW") || OPCODE.equals("RESB"))
 								{
 									int n = 0;
 									OPERAND = OPERAND.trim();
-									
+
 									if(IsStringInt(OPERAND))
 									{
-										n = Integer.parseInt(OPERAND);			
+										n = Integer.parseInt(OPERAND);
 									}
 									else
 									{
-										StaticThigs.Errorflag = -1;
+										StaticThings.Errorflag = -1;
 									}
 									if(OPCODE.equals("RESW"))
 									{
-										StaticThigs.LOCCTR += n * 3;
+										StaticThings.LOCCTR += n * 3;
 									}
 									else
 									{
-										StaticThigs.LOCCTR += n;
+										StaticThings.LOCCTR += n;
 									}
 								}
 								else if(OPCODE.equals("WORD") || OPCODE.equals("BYTE"))
 								{
 									if(OPCODE.equals("WORD"))
 									{
-										StaticThigs.LOCCTR += 3;
+										StaticThings.LOCCTR += 3;
 									}
 									else
 									{
 										if(OPERAND.charAt(0) == 'C')
-										{		
-											StaticThigs.LOCCTR += 1 * (OPERAND.trim().length()-3);
+										{
+											StaticThings.LOCCTR += 1 * (OPERAND.trim().length()-3);
 										}
 										else if(OPERAND.charAt(0) == 'X')
 										{
-											StaticThigs.LOCCTR += 1 * (OPERAND.trim().length()-3)/2;
+											StaticThings.LOCCTR += 1 * (OPERAND.trim().length()-3)/2;
 										}
 										else
 										{
-											StaticThigs.Errorflag = -1;
+											StaticThings.Errorflag = -1;
 										}
 									}
 								}
@@ -324,7 +336,158 @@ class MainWindow implements ActionListener
 		}
 	}
 
-	boolean IsStringInt(String s)
+	void Pass2()
+	{
+		/*	Clear Before reading	*/
+		StaticThings.LOCCTR = 0;
+		StaticThings.BaseAddress = 0;
+		StaticThings.Errorflag = 0;
+
+		/*	Variable to read line	`*/
+		int lineCount = m_FileTextArea.getLineCount();
+		String line = new String();
+		StringTokenizer Token;
+
+		/*	Varialbe for Pass2	*/
+		String LABEL = new String();
+		String OPCODE= new String();
+		String OPERAND = new String();
+		boolean Start = false;
+
+		try
+		{
+			for(int i = 0; i < lineCount; i++)
+			{
+				/*	Initialize to read line	*/
+				int start = m_FileTextArea.getLineStartOffset(i);
+				int end = m_FileTextArea.getLineEndOffset(i);
+				line = m_FileTextArea.getText(start,end-start);
+
+				Token = new StringTokenizer(GetPartOfString(line)," ");
+				LABEL = null; OPCODE = null; OPERAND = null;
+
+				if(!Start)
+				{
+					/*	Get LABEL, OPCODE, OPERAND from line	*/
+					if(Token.countTokens() == 3)
+					{
+						LABEL = Token.nextToken();
+					}
+					if(Token.hasMoreTokens())
+						OPCODE = Token.nextToken();
+					if(Token.hasMoreTokens())
+						OPERAND = Token.nextToken();
+
+					if(OPCODE.equals("START"))	// Find START
+					{
+						if(IsStringInt(OPERAND))
+						{
+							m_TransTextArea.setText(m_TransTextArea.getText() + "H" + StaticThings.ProgramName + GetDecToHex(StaticThings.StartAddress) + GetDecToHex(StaticThings.EndAddress - StaticThings.StartAddress) + "\n"); // Header record
+							Start = true;
+							Integer stringtoint = Integer.parseInt(OPERAND);
+							StaticThings.LOCCTR = stringtoint;
+						}
+						else
+						{
+							StaticThings.Errorflag = -1;	// Parameter Error
+						}
+					}
+				}
+				else if(Start)
+				{
+					/*	Get LABEL, OPCODE, OPERAND from line	*/
+					if(Token.countTokens() == 3)
+					{
+						LABEL = Token.nextToken();
+					}
+					if(Token.hasMoreTokens())
+						OPCODE = Token.nextToken();
+					if(Token.hasMoreTokens())
+						OPERAND = Token.nextToken();
+
+					if(OPCODE != null || !OPCODE.equals("."))
+					{
+						if(OPCODE.equals("END"))
+						{				
+							m_TransTextArea.setText(m_TransTextArea.getText() + "E" + GetDecToHex(StaticThings.StartAddress)); // End Record
+							return;
+						}
+						else
+						{
+							/*	Operation code Handle	*/
+							if(OPCODE.charAt(0) == '+' && StaticThings.OpTable.containsKey(OPCODE.substring(1))) // Format 4
+							{
+								OPTAB temp = (OPTAB)StaticThings.OpTable.get(OPCODE.substring(1));
+								
+								
+								StaticThings.LOCCTR += temp.oplength + 1;
+							}
+							else if(StaticThings.OpTable.containsKey(OPCODE))	// Format 3
+							{
+								OPTAB temp = (OPTAB)StaticThings.OpTable.get(OPCODE);
+								StaticThings.LOCCTR += temp.oplength;
+							}
+							/* Directive Handle	*/
+							else if(StaticThings.DirectTable.containsKey(OPCODE))
+							{
+								if(OPCODE.equals("RESW") || OPCODE.equals("RESB"))
+								{
+									int n = 0;
+									OPERAND = OPERAND.trim();
+
+									if(IsStringInt(OPERAND))
+									{
+										n = Integer.parseInt(OPERAND);
+									}
+									else
+									{
+										StaticThings.Errorflag = -1;
+									}
+									if(OPCODE.equals("RESW"))
+									{
+										StaticThings.LOCCTR += n * 3;
+									}
+									else
+									{
+										StaticThings.LOCCTR += n;
+									}
+								}
+								else if(OPCODE.equals("WORD") || OPCODE.equals("BYTE"))
+								{
+									if(OPCODE.equals("WORD"))
+									{
+										StaticThings.LOCCTR += 3;
+									}
+									else
+									{
+										if(OPERAND.charAt(0) == 'C')
+										{
+											StaticThings.LOCCTR += 1 * (OPERAND.trim().length()-3);
+										}
+										else if(OPERAND.charAt(0) == 'X')
+										{
+											StaticThings.LOCCTR += 1 * (OPERAND.trim().length()-3)/2;
+										}
+										else
+										{
+											StaticThings.Errorflag = -1;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+		}
+		catch(BadLocationException e)
+		{
+			System.out.println(e.toString());
+		}
+	}
+
+	boolean IsStringInt(String s)	// Can String transform to int
 	{
 		try
 		{
@@ -336,24 +499,39 @@ class MainWindow implements ActionListener
 			return false;
 		}
 	}
-	
-	String GetPartOfString(String str)
+	String GetPartOfString(String str)	// Read line
 	{
 		String part = new String();
 		char[] temp = new char[35];
-		
+
 		for(int i = 0; i < 35; i++)
 		{
 			temp[i] = 0;
 		}
-		
+
 		for(int i = 0; i < 35 && i < str.length(); i++)
 		{
 			temp[i] = str.charAt(i);
 		}
 		part = new String(temp);
-		
+
 		return part;
+	}
+	String GetDecToHex(int dec) // Dec -> Hex method
+	{
+		String hex;
+
+		hex = Integer.toHexString(dec);
+		if(hex.length() < 6)
+		{
+			int temp = 6 - hex.length();
+			for(int i = 0; i < temp; i++)
+			{
+				hex = "0" + hex;
+			}
+		}
+
+		return hex.toUpperCase();
 	}
 }
 
@@ -451,32 +629,32 @@ public class ASEM
 	static public void main(String[] args) //throws IOException
 	{
 		/*	Assembler operations	*/
-		StaticThigs.OpTable.put("ADD",new OPTAB(0x18,3,0));StaticThigs.OpTable.put("ADDF",new OPTAB(0x58,3,1));StaticThigs.OpTable.put("ADDR",new OPTAB(0x90,2,1));
-		StaticThigs.OpTable.put("AND",new OPTAB(0x40,3,0));StaticThigs.OpTable.put("CLEAR",new OPTAB(0xB4,2,1));StaticThigs.OpTable.put("COMP",new OPTAB(0x28,3,0));
-		StaticThigs.OpTable.put("COMPF",new OPTAB(0x88,3,1));StaticThigs.OpTable.put("COMPR",new OPTAB(0xA0,2,1));StaticThigs.OpTable.put("DIV",new OPTAB(0x24,3,0));
-		StaticThigs.OpTable.put("DIVF",new OPTAB(0x64,3,1));StaticThigs.OpTable.put("DIVR",new OPTAB(0x64,2,1));StaticThigs.OpTable.put("FIX",new OPTAB(0xC4,1,1));
-		StaticThigs.OpTable.put("FLOAT",new OPTAB(0xC0,1,1));StaticThigs.OpTable.put("HIO",new OPTAB(0xF4,1,1));StaticThigs.OpTable.put("J",new OPTAB(0x3C,3,0));
-		StaticThigs.OpTable.put("JEQ",new OPTAB(0x30,3,0));StaticThigs.OpTable.put("JGT",new OPTAB(0x34,3,0));StaticThigs.OpTable.put("JLT",new OPTAB(0x38,3,0));
-		StaticThigs.OpTable.put("JSUB",new OPTAB(0x48,3,0));StaticThigs.OpTable.put("LDA",new OPTAB(0x00,3,0));StaticThigs.OpTable.put("LDB",new OPTAB(0x68,3,1));
-		StaticThigs.OpTable.put("LDCH",new OPTAB(0x50,3,0));StaticThigs.OpTable.put("LDF",new OPTAB(0x70,3,1));StaticThigs.OpTable.put("LDL",new OPTAB(0x08,3,0));
-		StaticThigs.OpTable.put("LDS",new OPTAB(0x6C,3,1));StaticThigs.OpTable.put("LDT",new OPTAB(0x74,3,1));StaticThigs.OpTable.put("LDX",new OPTAB(0x04,3,0));
-		StaticThigs.OpTable.put("LPS",new OPTAB(0xD0,3,1));StaticThigs.OpTable.put("MUL",new OPTAB(0x20,3,0));StaticThigs.OpTable.put("MULF",new OPTAB(0x60,3,1));
-		StaticThigs.OpTable.put("MULR",new OPTAB(0x98,2,1));StaticThigs.OpTable.put("NORM",new OPTAB(0xC8,1,1));StaticThigs.OpTable.put("OR",new OPTAB(0x44,3,0));
-		StaticThigs.OpTable.put("RD",new OPTAB(0xD8,3,0));StaticThigs.OpTable.put("RMO",new OPTAB(0xAC,2,1));StaticThigs.OpTable.put("RSUB",new OPTAB(0x4C,3,0));
-		StaticThigs.OpTable.put("SHIFTL",new OPTAB(0xA4,2,1));StaticThigs.OpTable.put("SHIFTR",new OPTAB(0xA8,2,1));StaticThigs.OpTable.put("SIO",new OPTAB(0xF0,1,1));
-		StaticThigs.OpTable.put("SSK",new OPTAB(0xEC,3,1));StaticThigs.OpTable.put("STA",new OPTAB(0x0C,3,0));StaticThigs.OpTable.put("STB",new OPTAB(0x78,3,1));
-		StaticThigs.OpTable.put("STCH",new OPTAB(0x54,3,0));StaticThigs.OpTable.put("STF",new OPTAB(0x80,3,1));StaticThigs.OpTable.put("STI",new OPTAB(0xD4,3,1));
-		StaticThigs.OpTable.put("STL",new OPTAB(0x14,3,0));StaticThigs.OpTable.put("STS",new OPTAB(0x7C,3,1));StaticThigs.OpTable.put("STSW",new OPTAB(0xE8,3,0));
-		StaticThigs.OpTable.put("STT",new OPTAB(0x84,3,1));StaticThigs.OpTable.put("STX",new OPTAB(0x10,3,0));StaticThigs.OpTable.put("SUB",new OPTAB(0x1C,3,0));
-		StaticThigs.OpTable.put("SUBF",new OPTAB(0x5C,3,1));StaticThigs.OpTable.put("SUBR",new OPTAB(0x94,2,1));StaticThigs.OpTable.put("SVC",new OPTAB(0xB0,2,1));
-		StaticThigs.OpTable.put("TD",new OPTAB(0xE0,3,0));StaticThigs.OpTable.put("TIO",new OPTAB(0xF8,1,1));StaticThigs.OpTable.put("TIX",new OPTAB(0x2C,3,0));
-		StaticThigs.OpTable.put("TIXR",new OPTAB(0xB8,2,1));StaticThigs.OpTable.put("WD",new OPTAB(0xDC,3,0));
+		StaticThings.OpTable.put("ADD",new OPTAB(0x18,3,0));StaticThings.OpTable.put("ADDF",new OPTAB(0x58,3,1));StaticThings.OpTable.put("ADDR",new OPTAB(0x90,2,1));
+		StaticThings.OpTable.put("AND",new OPTAB(0x40,3,0));StaticThings.OpTable.put("CLEAR",new OPTAB(0xB4,2,1));StaticThings.OpTable.put("COMP",new OPTAB(0x28,3,0));
+		StaticThings.OpTable.put("COMPF",new OPTAB(0x88,3,1));StaticThings.OpTable.put("COMPR",new OPTAB(0xA0,2,1));StaticThings.OpTable.put("DIV",new OPTAB(0x24,3,0));
+		StaticThings.OpTable.put("DIVF",new OPTAB(0x64,3,1));StaticThings.OpTable.put("DIVR",new OPTAB(0x64,2,1));StaticThings.OpTable.put("FIX",new OPTAB(0xC4,1,1));
+		StaticThings.OpTable.put("FLOAT",new OPTAB(0xC0,1,1));StaticThings.OpTable.put("HIO",new OPTAB(0xF4,1,1));StaticThings.OpTable.put("J",new OPTAB(0x3C,3,0));
+		StaticThings.OpTable.put("JEQ",new OPTAB(0x30,3,0));StaticThings.OpTable.put("JGT",new OPTAB(0x34,3,0));StaticThings.OpTable.put("JLT",new OPTAB(0x38,3,0));
+		StaticThings.OpTable.put("JSUB",new OPTAB(0x48,3,0));StaticThings.OpTable.put("LDA",new OPTAB(0x00,3,0));StaticThings.OpTable.put("LDB",new OPTAB(0x68,3,1));
+		StaticThings.OpTable.put("LDCH",new OPTAB(0x50,3,0));StaticThings.OpTable.put("LDF",new OPTAB(0x70,3,1));StaticThings.OpTable.put("LDL",new OPTAB(0x08,3,0));
+		StaticThings.OpTable.put("LDS",new OPTAB(0x6C,3,1));StaticThings.OpTable.put("LDT",new OPTAB(0x74,3,1));StaticThings.OpTable.put("LDX",new OPTAB(0x04,3,0));
+		StaticThings.OpTable.put("LPS",new OPTAB(0xD0,3,1));StaticThings.OpTable.put("MUL",new OPTAB(0x20,3,0));StaticThings.OpTable.put("MULF",new OPTAB(0x60,3,1));
+		StaticThings.OpTable.put("MULR",new OPTAB(0x98,2,1));StaticThings.OpTable.put("NORM",new OPTAB(0xC8,1,1));StaticThings.OpTable.put("OR",new OPTAB(0x44,3,0));
+		StaticThings.OpTable.put("RD",new OPTAB(0xD8,3,0));StaticThings.OpTable.put("RMO",new OPTAB(0xAC,2,1));StaticThings.OpTable.put("RSUB",new OPTAB(0x4C,3,0));
+		StaticThings.OpTable.put("SHIFTL",new OPTAB(0xA4,2,1));StaticThings.OpTable.put("SHIFTR",new OPTAB(0xA8,2,1));StaticThings.OpTable.put("SIO",new OPTAB(0xF0,1,1));
+		StaticThings.OpTable.put("SSK",new OPTAB(0xEC,3,1));StaticThings.OpTable.put("STA",new OPTAB(0x0C,3,0));StaticThings.OpTable.put("STB",new OPTAB(0x78,3,1));
+		StaticThings.OpTable.put("STCH",new OPTAB(0x54,3,0));StaticThings.OpTable.put("STF",new OPTAB(0x80,3,1));StaticThings.OpTable.put("STI",new OPTAB(0xD4,3,1));
+		StaticThings.OpTable.put("STL",new OPTAB(0x14,3,0));StaticThings.OpTable.put("STS",new OPTAB(0x7C,3,1));StaticThings.OpTable.put("STSW",new OPTAB(0xE8,3,0));
+		StaticThings.OpTable.put("STT",new OPTAB(0x84,3,1));StaticThings.OpTable.put("STX",new OPTAB(0x10,3,0));StaticThings.OpTable.put("SUB",new OPTAB(0x1C,3,0));
+		StaticThings.OpTable.put("SUBF",new OPTAB(0x5C,3,1));StaticThings.OpTable.put("SUBR",new OPTAB(0x94,2,1));StaticThings.OpTable.put("SVC",new OPTAB(0xB0,2,1));
+		StaticThings.OpTable.put("TD",new OPTAB(0xE0,3,0));StaticThings.OpTable.put("TIO",new OPTAB(0xF8,1,1));StaticThings.OpTable.put("TIX",new OPTAB(0x2C,3,0));
+		StaticThings.OpTable.put("TIXR",new OPTAB(0xB8,2,1));StaticThings.OpTable.put("WD",new OPTAB(0xDC,3,0));
 
 		/*	Assembler directives	*/
-		StaticThigs.DirectTable.put("BASE",new OPTAB(1,0,0));  StaticThigs.DirectTable.put("NOBASE",new OPTAB(2,0,0)); StaticThigs.DirectTable.put("BYTE",new OPTAB(3,0,0)); StaticThigs.DirectTable.put("END",new OPTAB(4,0,0));
-		StaticThigs.DirectTable.put("EQU",new OPTAB(5,0,0)); StaticThigs.DirectTable.put("LTORG",new OPTAB(6,0,0)); StaticThigs.DirectTable.put("RESB",new OPTAB(7,0,0));   StaticThigs.DirectTable.put("RESW",new OPTAB(8,0,0));
-		StaticThigs.DirectTable.put("START",new OPTAB(9,0,0)); StaticThigs.DirectTable.put("WORD",new OPTAB(10,0,0)); StaticThigs.DirectTable.put("USE",new OPTAB(11,0,0));   StaticThigs.DirectTable.put("CSECT",new OPTAB(12,0,0));
-		StaticThigs.DirectTable.put("EXTREF",new OPTAB(13,0,0)); StaticThigs.DirectTable.put("EXTDEF",new OPTAB(14,0,0));
+		StaticThings.DirectTable.put("BASE",new OPTAB(1,0,0));  StaticThings.DirectTable.put("NOBASE",new OPTAB(2,0,0)); StaticThings.DirectTable.put("BYTE",new OPTAB(3,0,0)); StaticThings.DirectTable.put("END",new OPTAB(4,0,0));
+		StaticThings.DirectTable.put("EQU",new OPTAB(5,0,0)); StaticThings.DirectTable.put("LTORG",new OPTAB(6,0,0)); StaticThings.DirectTable.put("RESB",new OPTAB(7,0,0));   StaticThings.DirectTable.put("RESW",new OPTAB(8,0,0));
+		StaticThings.DirectTable.put("START",new OPTAB(9,0,0)); StaticThings.DirectTable.put("WORD",new OPTAB(10,0,0)); StaticThings.DirectTable.put("USE",new OPTAB(11,0,0));   StaticThings.DirectTable.put("CSECT",new OPTAB(12,0,0));
+		StaticThings.DirectTable.put("EXTREF",new OPTAB(13,0,0)); StaticThings.DirectTable.put("EXTDEF",new OPTAB(14,0,0));
 
 		new MainWindow();
 	}
