@@ -48,7 +48,7 @@ class StaticThings
 	public static int BaseAddress; // Base Address
 	public static int Errorflag;
 
-	public void Clear() // Clear to assemble again
+	public static void Clear() // Clear to assemble again
 	{
 		Table = new Hashtable();
 		LOCCTR = 0;
@@ -150,6 +150,7 @@ class MainWindow implements ActionListener
 	{
 		if(e.getSource() == m_TransButton)	//	Assemble Button
 		{
+			StaticThings.Clear();
 			Pass1();
 			Pass2();
 			System.out.println("Assemble");
