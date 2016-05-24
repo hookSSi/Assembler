@@ -60,6 +60,85 @@ class StaticThings
 	}
 }
 
+class Trecord
+{
+	public static ArrayList<String> TRecordTable = new ArrayList<String>();
+	public static String temp = new String(); // Store untill max T record size
+	public static int startAddress = 0;
+	public static int endAddress = 0;
+	public static int count = 0;
+	
+	public static void Clear()
+	{
+		TRecordTable = new ArrayList<String>();
+		startAddress = StaticThings.StartAddress;
+		endAddress = 0;
+	}
+	public static void Append(String T) // need to fix!!!!!!
+	{
+		int length = T.length();
+		if(count + length < 60)
+		{
+			TRecordTable.add(T);
+			count += length;
+		}
+		else
+		{
+			count = 0;
+			TRecordTable.add("\nT"+GetDecToHex(StaticThings.LOCCTR));
+			TRecordTable.add(T);
+			count += length;
+		}
+			
+	}
+	static boolean IsStringInt(String s)	// Can String transform to int
+	{
+		try
+		{
+			Integer.parseInt(s);
+			return true;
+		}
+		catch(NumberFormatException e)
+		{
+			return false;
+		}
+	}
+	static String GetPartOfString(String str)	// Read line
+	{
+		String part = new String();
+		char[] temp = new char[35];
+
+		for(int i = 0; i < 35; i++)
+		{
+			temp[i] = 0;
+		}
+
+		for(int i = 0; i < 35 && i < str.length(); i++)
+		{
+			temp[i] = str.charAt(i);
+		}
+		part = new String(temp);
+
+		return part;
+	}
+	static String GetDecToHex(int dec) // Dec -> Hex method
+	{
+		String hex;
+
+		hex = Integer.toHexString(dec);
+		if(hex.length() < 6)
+		{
+			int temp = 6 - hex.length();
+			for(int i = 0; i < temp; i++)
+			{
+				hex = "0" + hex;
+			}
+		}
+
+		return hex.toUpperCase();
+	}
+}
+
 /*	UI	control	*/
 class MainWindow implements ActionListener
 {
@@ -232,6 +311,7 @@ class MainWindow implements ActionListener
 						}
 						else
 						{
+							System.out.println("Error : Parameter Unvalid");
 							StaticThings.Errorflag = -1;	// Parameter Error
 						}
 					}
@@ -259,6 +339,7 @@ class MainWindow implements ActionListener
 							/*	Symbol code handle	*/
 							if(LABEL != null && StaticThings.Table.containsKey(LABEL))
 							{
+								System.out.println("Error : Symbol has signed already");
 								StaticThings.Errorflag = -1;
 							}
 							else if(LABEL != null && !StaticThings.Table.containsKey(LABEL))
@@ -320,6 +401,7 @@ class MainWindow implements ActionListener
 										}
 										else
 										{
+											System.out.println("Error : Parameter Unvalid");
 											StaticThings.Errorflag = -1;
 										}
 									}
@@ -390,6 +472,7 @@ class MainWindow implements ActionListener
 						}
 						else
 						{
+							System.out.println("Error : Parameter Unvalid");
 							StaticThings.Errorflag = -1;	// Parameter Error
 						}
 					}
@@ -419,13 +502,33 @@ class MainWindow implements ActionListener
 							if(OPCODE.charAt(0) == '+' && StaticThings.OpTable.containsKey(OPCODE.substring(1))) // Format 4
 							{
 								OPTAB temp = (OPTAB)StaticThings.OpTable.get(OPCODE.substring(1));
-								
-								
+								char ch = OPERAND.charAt(0);
+								if(ch == '#' || ch == '@')
+								{
+									if(ch == '#')	// Immediately addressing
+									{
+										
+									}
+									else // Indirect addressing
+									{
+										
+									}
+								}
+								else if(IsStringInt(OPERAND)) // 1042 ??
+								{
+									
+								}
+								else
+								{
+									
+								}
+								/*	Locctr add handle	*/
 								StaticThings.LOCCTR += temp.oplength + 1;
 							}
 							else if(StaticThings.OpTable.containsKey(OPCODE))	// Format 3
 							{
 								OPTAB temp = (OPTAB)StaticThings.OpTable.get(OPCODE);
+								/*	Locctr add handle	*/
 								StaticThings.LOCCTR += temp.oplength;
 							}
 							/* Directive Handle	*/
@@ -433,6 +536,8 @@ class MainWindow implements ActionListener
 							{
 								if(OPCODE.equals("RESW") || OPCODE.equals("RESB"))
 								{
+									
+									/*	Locctr add handle	*/
 									int n = 0;
 									OPERAND = OPERAND.trim();
 
@@ -455,6 +560,8 @@ class MainWindow implements ActionListener
 								}
 								else if(OPCODE.equals("WORD") || OPCODE.equals("BYTE"))
 								{
+									
+									/*	Locctr add handle	*/
 									if(OPCODE.equals("WORD"))
 									{
 										StaticThings.LOCCTR += 3;
@@ -598,31 +705,6 @@ class FileDialogWindow extends JFrame
 
 	}
 }
-
-/*
-class TextFrame extends JFrame implements ActionListener
-{
-	JButton b;
-
-	TextFrame()
-	{
-		b = new JButton();
-		b.setSize(250,250);
-		b.addActionListener(this);
-
-		this.setVisible(true);
-		this.setLayeredPane(null);
-		this.setSize(300, 300);
-	}
-
-	public void actionPerformed(ActionEvent e)
-	{
-		if(e.getSource() == b)
-		{
-			return new Color();
-		}
-	}
-}*/
 
 /*	Main	*/
 public class ASEM
