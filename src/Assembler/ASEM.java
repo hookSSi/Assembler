@@ -525,9 +525,19 @@ class MainWindow implements ActionListener
 								/*	Locctr add handle	*/
 								StaticThings.LOCCTR += temp.oplength + 1;
 							}
-							else if(StaticThings.OpTable.containsKey(OPCODE))	// Format 3
+							else if(StaticThings.OpTable.containsKey(OPCODE))
 							{
 								OPTAB temp = (OPTAB)StaticThings.OpTable.get(OPCODE);
+								
+								switch(temp.oplength)
+								{
+								case 1:					// Format 1
+									break;
+								case 2:					// Format 2
+									break;
+								case 3:					// Format 3
+									break;
+								}
 								/*	Locctr add handle	*/
 								StaticThings.LOCCTR += temp.oplength;
 							}
@@ -536,7 +546,6 @@ class MainWindow implements ActionListener
 							{
 								if(OPCODE.equals("RESW") || OPCODE.equals("RESB"))
 								{
-									
 									/*	Locctr add handle	*/
 									int n = 0;
 									OPERAND = OPERAND.trim();
