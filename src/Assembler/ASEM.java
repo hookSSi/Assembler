@@ -13,6 +13,7 @@ import javax.xml.stream.events.Characters;
 import javafx.stage.FileChooser;
 import java.util.*;
 
+/*	Operation Node	*/
 class OPTAB
 {
 	int op; // Operation Code
@@ -31,6 +32,7 @@ class OPTAB
 	public int GetExt(){return oplength+ext;}
 }
 
+/*	Static things in assembler	*/
 class StaticThings
 {
 	/*	Operation Table	*/
@@ -60,6 +62,7 @@ class StaticThings
 	}
 }
 
+/*	To store T record	*/
 class Trecord
 {
 	public static ArrayList<String> TRecordTable = new ArrayList<String>();
@@ -67,7 +70,7 @@ class Trecord
 	public static int startAddress = 0;
 	public static int endAddress = 0;
 	public static int count = 0;
-	
+
 	public static void Clear()
 	{
 		TRecordTable = new ArrayList<String>();
@@ -89,7 +92,7 @@ class Trecord
 			TRecordTable.add(T);
 			count += length;
 		}
-			
+
 	}
 	static boolean IsStringInt(String s)	// Can String transform to int
 	{
@@ -135,6 +138,133 @@ class Trecord
 			}
 		}
 
+		return hex.toUpperCase();
+	}
+}
+
+/*	Bit class - Byte	*/
+class BitVector
+{
+	byte[] m_array = {0};
+	int m_size;
+
+	BitVector(int p_size)
+	{
+		m_size = 0;
+		Resize(p_size);
+	}
+	void Resize(int p_size)
+	{
+		if(p_size % 8 == 0)
+		{
+			m_size = p_size / 8;
+		}
+		else
+			m_size = p_size;
+		byte[] newvector = new byte[m_size];
+		m_array = new byte[m_size];
+		if(newvector == null)
+			return;
+		int min;
+		if(p_size < m_size)
+			min = p_size;
+		else
+			min = m_size;
+		System.arraycopy(m_array, 0, newvector, 0, min);
+		m_size = p_size;
+		System.arraycopy(newvector, 0, m_array, 0, newvector.length);
+	}
+	int GetBit (int p_index)
+	{
+		int cell = p_index / 8;
+		int bit = 7 - (p_index % 8);
+		return (m_array[cell] & (1 << bit)) >> bit;
+	}
+	int GetByte(int p_index)
+	{
+		return m_array[p_index];
+	}
+	void Set(int p_index, boolean p_value)
+	{
+		int cell = p_index / 8;
+		int bit = 7 - (p_index % 8);
+		if(p_value == true)
+			m_array[cell] = (byte) (m_array[cell] | (1 << bit));
+		else
+			m_array[cell] = (byte) (m_array[cell] & (~(1 << bit)));
+	}
+	void SetOp(int p_value)
+	{
+		Integer temp = new Integer(p_value);
+		if(m_size >= 3)
+		{
+			Set(6,false); // n
+			Set(7,false); // i
+			Set(8, false); // x
+			Set(9, false); // b
+			Set(10, false); // p
+			m_array[0] =  temp.byteValue();
+		}
+		else
+			m_array[0] =  temp.byteValue();
+	}
+	void SetAddress(int p_address)
+	{
+		if(m_size == 4)
+		{
+			Integer temp1 = new Integer(p_address % 256);
+			Integer temp2 = new Integer((p_address / 256) % 256);
+			Integer temp3 = new Integer((p_address / 256) / 256);
+			m_array[1] = temp3.byteValue();
+			m_array[2] = temp2.byteValue();
+			m_array[3] = temp1.byteValue();
+		}
+		else if(m_size == 3)
+		{
+			Integer temp1 = new Integer(p_address % 256);
+			Integer temp2 = new Integer(p_address / 256);
+			m_array[1] = temp1.byteValue();
+			m_array[2] = temp2.byteValue();
+		}
+		
+	}
+	void SetRegister(int p_r1, int p_r2)
+	{
+		Integer temp = new Integer(p_r1 * 16 + p_r2);
+		m_array[1] = temp.byteValue();
+	}
+	String BitToString()
+	{
+		String str = "";
+		System.out.println("\n" +m_array[0]);
+		if(m_size >= 3)
+		{
+			str = GetDecToHex(m_array[0]);			
+			for(int i = 8; i < m_size * 8; i = i + 4)
+				str = str + GetDecToHex((GetBit(i) * 8 + GetBit(i+1) * 4 + GetBit(i+2) * 2 + GetBit(i+3)));
+		}
+		else
+		{
+			str = GetDecToHex(m_array[0]);
+			for(int i = 8; i < m_size * 8; i = i + 4)
+				str = str + GetDecToHex((GetBit(i) * 8 + GetBit(i+1) * 4 + GetBit(i+2) * 2 + GetBit(i+3)));
+		}
+		
+		return str;
+	}
+	void ClearAll()
+	{
+		for(int i = 0; i < m_size; i++)
+			m_array[i] = 0;
+	}
+	String GetDecToHex(int dec)
+	{
+		String hex;
+		hex = Integer.toHexString(dec);
+		if(hex.length() > 2)
+		{
+			hex = hex.substring(hex.length()-2, hex.length());
+		}
 		return hex.toUpperCase();
 	}
 }
@@ -301,9 +431,9 @@ class MainWindow implements ActionListener
 							StaticThings.LOCCTR = stringtoint;
 							StaticThings.StartAddress = stringtoint;
 							StaticThings.Table.put("START", LABEL);
-							if(LABEL.trim().length() < 6)
+							if(LABEL.length() < 6)
 							{
-								int temp = 6 - LABEL.trim().length();
+								int temp = 6 - LABEL.length();
 								for(int j = 0; j < temp; j++)
 									LABEL += " ";
 							}
@@ -319,13 +449,17 @@ class MainWindow implements ActionListener
 				else if(StaticThings.Table.get("START") != null)
 				{
 					if(Token.countTokens() == 3)
-					{
 						LABEL = Token.nextToken();
-					}
 					if(Token.hasMoreTokens())
 						OPCODE = Token.nextToken();
 					if(Token.hasMoreTokens())
 						OPERAND = Token.nextToken();
+					if(LABEL != null)
+						LABEL = LABEL.trim();
+					if(OPCODE != null)
+						OPCODE = OPCODE.trim();
+					if(OPERAND != null)
+						OPERAND = OPERAND.trim();
 
 					if(OPCODE != null || !OPCODE.equals("."))
 					{
@@ -364,7 +498,6 @@ class MainWindow implements ActionListener
 								if(OPCODE.equals("RESW") || OPCODE.equals("RESB"))
 								{
 									int n = 0;
-									OPERAND = OPERAND.trim();
 
 									if(IsStringInt(OPERAND))
 									{
@@ -393,11 +526,11 @@ class MainWindow implements ActionListener
 									{
 										if(OPERAND.charAt(0) == 'C')
 										{
-											StaticThings.LOCCTR += 1 * (OPERAND.trim().length()-3);
+											StaticThings.LOCCTR += 1 * (OPERAND.length()-3);
 										}
 										else if(OPERAND.charAt(0) == 'X')
 										{
-											StaticThings.LOCCTR += 1 * (OPERAND.trim().length()-3)/2;
+											StaticThings.LOCCTR += 1 * (OPERAND.length()-3)/2;
 										}
 										else
 										{
@@ -453,9 +586,7 @@ class MainWindow implements ActionListener
 				{
 					/*	Get LABEL, OPCODE, OPERAND from line	*/
 					if(Token.countTokens() == 3)
-					{
 						LABEL = Token.nextToken();
-					}
 					if(Token.hasMoreTokens())
 						OPCODE = Token.nextToken();
 					if(Token.hasMoreTokens())
@@ -489,10 +620,17 @@ class MainWindow implements ActionListener
 					if(Token.hasMoreTokens())
 						OPERAND = Token.nextToken();
 
+					if(LABEL != null)
+						LABEL = LABEL.trim();
+					if(OPCODE != null)
+						OPCODE = OPCODE.trim();
+					if(OPERAND != null)
+						OPERAND = OPERAND.trim();
+
 					if(OPCODE != null || !OPCODE.equals("."))
 					{
 						if(OPCODE.equals("END"))
-						{				
+						{
 							m_TransTextArea.setText(m_TransTextArea.getText() + "E" + GetDecToHex(StaticThings.StartAddress)); // End Record
 							return;
 						}
@@ -502,25 +640,45 @@ class MainWindow implements ActionListener
 							if(OPCODE.charAt(0) == '+' && StaticThings.OpTable.containsKey(OPCODE.substring(1))) // Format 4
 							{
 								OPTAB temp = (OPTAB)StaticThings.OpTable.get(OPCODE.substring(1));
+								BitVector format = new BitVector(4);
+								format.Set(11, true); // e
+								format.SetOp(temp.op);
 								char ch = OPERAND.charAt(0);
 								if(ch == '#' || ch == '@')
 								{
 									if(ch == '#')	// Immediately addressing
 									{
-										
+										format.Set(7, true); // i
+										if(IsStringInt(OPERAND)) // OPREAND is integer
+										{
+											format.SetAddress(Integer.parseInt(OPERAND));
+											Trecord.Append(format.BitToString()); // store T record into table
+										}
+										else // OPERAND has operation
+										{
+											OperandHandle(OPERAND,format);			
+										}
 									}
 									else // Indirect addressing
 									{
-										
+										format.Set(6, true);
+										if(IsStringInt(OPERAND))
+										{
+											format.SetAddress(Integer.parseInt(OPERAND));
+										}
+										else
+										{
+											
+										}	
 									}
 								}
 								else if(IsStringInt(OPERAND)) // 1042 ??
 								{
-									
+
 								}
 								else
 								{
-									
+
 								}
 								/*	Locctr add handle	*/
 								StaticThings.LOCCTR += temp.oplength + 1;
@@ -529,15 +687,6 @@ class MainWindow implements ActionListener
 							{
 								OPTAB temp = (OPTAB)StaticThings.OpTable.get(OPCODE);
 								
-								switch(temp.oplength)
-								{
-								case 1:					// Format 1
-									break;
-								case 2:					// Format 2
-									break;
-								case 3:					// Format 3
-									break;
-								}
 								/*	Locctr add handle	*/
 								StaticThings.LOCCTR += temp.oplength;
 							}
@@ -548,7 +697,6 @@ class MainWindow implements ActionListener
 								{
 									/*	Locctr add handle	*/
 									int n = 0;
-									OPERAND = OPERAND.trim();
 
 									if(IsStringInt(OPERAND))
 									{
@@ -569,7 +717,7 @@ class MainWindow implements ActionListener
 								}
 								else if(OPCODE.equals("WORD") || OPCODE.equals("BYTE"))
 								{
-									
+
 									/*	Locctr add handle	*/
 									if(OPCODE.equals("WORD"))
 									{
@@ -579,17 +727,21 @@ class MainWindow implements ActionListener
 									{
 										if(OPERAND.charAt(0) == 'C')
 										{
-											StaticThings.LOCCTR += 1 * (OPERAND.trim().length()-3);
+											StaticThings.LOCCTR += 1 * (OPERAND.length()-3);
 										}
 										else if(OPERAND.charAt(0) == 'X')
 										{
-											StaticThings.LOCCTR += 1 * (OPERAND.trim().length()-3)/2;
+											StaticThings.LOCCTR += 1 * (OPERAND.length()-3)/2;
 										}
 										else
 										{
 											StaticThings.Errorflag = -1;
 										}
 									}
+								}
+								else if(OPCODE.equals("BASE"))
+								{
+
 								}
 							}
 						}
@@ -649,6 +801,51 @@ class MainWindow implements ActionListener
 		}
 
 		return hex.toUpperCase();
+	}
+	char OperandHandle(String OPERAND,BitVector format)
+	{
+		StringTokenizer OPERANDToken;
+		char operation = 0;
+		
+		/*	Searching Operation	*/
+		for(int index = 0; index < OPERAND.length(); index++)
+		{
+			switch(OPERAND.charAt(index))
+			{
+			case ',':OPERANDToken = new StringTokenizer(OPERAND,","); operation = ',';
+				index = OPERAND.length();break;
+			case '+':OPERANDToken = new StringTokenizer(OPERAND,"+"); operation = '+';
+				index = OPERAND.length();break;
+			case '-':OPERANDToken = new StringTokenizer(OPERAND,"-"); operation = '-';
+				index = OPERAND.length();break;
+			case '=':OPERANDToken = new StringTokenizer(OPERAND,"="); operation = '=';
+				index = OPERAND.length();break;
+			}
+		}
+		/*	Do as Operation	*/
+		switch(operation)
+		{
+		case ',' :
+			if(format.m_size >= 3)
+			{
+				format.Set(8, true); // x
+				format.Set(9, false); // b
+				format.Set(10, false); // p
+			}
+			else // register
+			{
+				
+			}
+			break;
+		case '+':
+			break;
+		case '-':
+			break;
+		case '=':
+			break;
+		}
+		
+		return operation;
 	}
 }
 

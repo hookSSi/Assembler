@@ -3,31 +3,17 @@ package Assembler;
 import java.util.Hashtable;
 import java.util.StringTokenizer;
 
-class power
-{
-	public int a = 1;
-	int b = 2;
-	int c = 3;
-	power(int a){this.a =a;}
-	
-	public int GetA(){return a;}
-}
-
 public class Test 
 {
 	public static void main(String[] args)
 	{
-		/*
-		Hashtable OpTable = new Hashtable();
-		power p = new power(2);
-		power p2 = new power(3);
-		OpTable.put("Test", p);
-		
-		p2 = (power)OpTable.get("Test");
-		
-		if(OpTable.containsKey("Tes2t"))
-			System.out.println(p2.a);*/
-		
-		System.out.println(0x16 + 2);
+		BitVector test = new BitVector(4);
+		test.SetOp(0x74);
+		test.SetAddress(4096);
+		test.Set(7, true);
+		test.Set(11, true);
+		for(int i = 0; i < 32; i++)
+			System.out.print(test.GetBit(i));
+		System.out.println(test.BitToString());
 	}
 }
