@@ -7,6 +7,7 @@ public class Test
 {
 	public static void main(String[] args)
 	{
+		/*
 		BitVector test = new BitVector(4);
 		test.SetOp(0x74);
 		test.SetAddress(4096);
@@ -15,5 +16,10 @@ public class Test
 		for(int i = 0; i < 32; i++)
 			System.out.print(test.GetBit(i));
 		System.out.println(test.BitToString());
+		*
+		*/
+		String str = new String("#LDA");
+		
+		System.out.println(str.substring(1, str.length()));
 	}
 }

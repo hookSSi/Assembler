@@ -41,6 +41,8 @@ class StaticThings
 	public static Hashtable DirectTable = new Hashtable();
 	/*	Symbol Table	*/
 	public static Hashtable Table = new Hashtable();
+	/*	Register Table	*/
+	public static Hashtable RegistTable = new Hashtable();
 
 
 	public static int LOCCTR; 	// Address Counter
@@ -88,7 +90,7 @@ class Trecord
 		else
 		{
 			count = 0;
-			TRecordTable.add("\nT"+GetDecToHex(StaticThings.LOCCTR));
+			TRecordTable.add("\nT"); //+GetDecToHex(StaticThings.LOCCTR)
 			TRecordTable.add(T);
 			count += length;
 		}
@@ -631,6 +633,10 @@ class MainWindow implements ActionListener
 					{
 						if(OPCODE.equals("END"))
 						{
+							for(int index = 0; index < Trecord.TRecordTable.size(); index++)
+							{
+								m_TransTextArea.setText(m_TransTextArea.getText() + Trecord.TRecordTable.get(index));
+							}
 							m_TransTextArea.setText(m_TransTextArea.getText() + "E" + GetDecToHex(StaticThings.StartAddress)); // End Record
 							return;
 						}
@@ -639,7 +645,10 @@ class MainWindow implements ActionListener
 							/*	Operation code Handle	*/
 							if(OPCODE.charAt(0) == '+' && StaticThings.OpTable.containsKey(OPCODE.substring(1))) // Format 4
 							{
+								/*	Locctr add handle	*/
 								OPTAB temp = (OPTAB)StaticThings.OpTable.get(OPCODE.substring(1));
+								StaticThings.LOCCTR += temp.oplength + 1;
+								
 								BitVector format = new BitVector(4);
 								format.Set(11, true); // e
 								format.SetOp(temp.op);
@@ -654,9 +663,10 @@ class MainWindow implements ActionListener
 											format.SetAddress(Integer.parseInt(OPERAND));
 											Trecord.Append(format.BitToString()); // store T record into table
 										}
-										else // OPERAND has operation
+										else // OPERAND is Symbol
 										{
-											OperandHandle(OPERAND,format);			
+											OperandHandle(OPERAND,format);
+											Trecord.Append(format.BitToString());
 										}
 									}
 									else // Indirect addressing
@@ -665,30 +675,78 @@ class MainWindow implements ActionListener
 										if(IsStringInt(OPERAND))
 										{
 											format.SetAddress(Integer.parseInt(OPERAND));
+											Trecord.Append(format.BitToString());
 										}
 										else
 										{
-											
+											OperandHandle(OPERAND,format);
+											Trecord.Append(format.BitToString());
 										}	
 									}
 								}
-								else if(IsStringInt(OPERAND)) // 1042 ??
+								else if(IsStringInt(OPERAND))
 								{
-
+									format.SetAddress(Integer.parseInt(OPERAND));
+									Trecord.Append(format.BitToString());
 								}
 								else
 								{
-
+									OperandHandle(OPERAND,format);
+									Trecord.Append(format.BitToString());
 								}
-								/*	Locctr add handle	*/
-								StaticThings.LOCCTR += temp.oplength + 1;
+								
 							}
-							else if(StaticThings.OpTable.containsKey(OPCODE))
+							else if(StaticThings.OpTable.containsKey(OPCODE)) // Format 3
 							{
 								OPTAB temp = (OPTAB)StaticThings.OpTable.get(OPCODE);
 								
 								/*	Locctr add handle	*/
 								StaticThings.LOCCTR += temp.oplength;
+								
+								BitVector format = new BitVector(3);
+								format.SetOp(temp.op);
+								char ch = OPERAND.charAt(0);
+								if(ch == '#' || ch == '@')
+								{
+									if(ch == '#')	// Immediately addressing
+									{
+										format.Set(7, true); // i
+										if(IsStringInt(OPERAND)) // OPREAND is integer
+										{
+											format.SetAddress(Integer.parseInt(OPERAND));
+											Trecord.Append(format.BitToString()); // store T record into table
+										}
+										else // OPERAND is Symbol
+										{
+											format.SetAddress((int)StaticThings.Table.get(OPERAND.substring(1, OPERAND.length())));
+											Trecord.Append(format.BitToString());
+										}
+									}
+									else // Indirect addressing
+									{
+										format.Set(6, true);
+										if(IsStringInt(OPERAND))
+										{
+											format.SetAddress(Integer.parseInt(OPERAND));
+											Trecord.Append(format.BitToString());
+										}
+										else
+										{
+											OperandHandle(OPERAND,format);
+											Trecord.Append(format.BitToString());
+										}	
+									}
+								}
+								else if(IsStringInt(OPERAND))
+								{
+									format.SetAddress(Integer.parseInt(OPERAND));
+									Trecord.Append(format.BitToString());
+								}
+								else
+								{
+									OperandHandle(OPERAND,format);
+									Trecord.Append(format.BitToString());
+								}
 							}
 							/* Directive Handle	*/
 							else if(StaticThings.DirectTable.containsKey(OPCODE))
@@ -802,9 +860,9 @@ class MainWindow implements ActionListener
 
 		return hex.toUpperCase();
 	}
-	char OperandHandle(String OPERAND,BitVector format)
+	char OperandHandle(String OPERAND,BitVector format) // Only handle OPERAND is Symbol
 	{
-		StringTokenizer OPERANDToken;
+		StringTokenizer OPERANDToken = null;
 		char operation = 0;
 		
 		/*	Searching Operation	*/
@@ -826,15 +884,28 @@ class MainWindow implements ActionListener
 		switch(operation)
 		{
 		case ',' :
-			if(format.m_size >= 3)
+			if(format.m_size == 3)
 			{
 				format.Set(8, true); // x
-				format.Set(9, false); // b
-				format.Set(10, false); // p
+				int PC = StaticThings.LOCCTR;
+				int BASE = StaticThings.BaseAddress;
+				int Target = (int)StaticThings.Table.get(OPERANDToken.nextToken());
+				
+				if(-2048 >= Target - PC && Target - PC <=2047)
+				{
+					format.Set(10, true); // p
+				}	
+				else if(0 >= Target - BASE && Target - BASE <= 4095)
+				{
+					format.Set(9, true); // b
+				}
 			}
 			else // register
 			{
-				
+				int r1 = (int)StaticThings.RegistTable.get(OPERANDToken.nextToken());
+				int r2 = (int)StaticThings.RegistTable.get(OPERANDToken.nextToken());
+
+				format.SetRegister(r1, r2);
 			}
 			break;
 		case '+':
@@ -842,6 +913,34 @@ class MainWindow implements ActionListener
 		case '-':
 			break;
 		case '=':
+			break;
+		case 0:		// Default
+			if(format.m_size == 4)
+			{
+				int Target = (int)StaticThings.Table.get(OPERAND);
+				format.SetAddress(Target);
+			}
+			else if(format.m_size == 3)
+			{
+				int PC = StaticThings.LOCCTR;
+				int BASE = StaticThings.BaseAddress;
+				int Target = (int)StaticThings.Table.get(OPERAND);
+				
+				if(-2048 >= Target - PC && Target - PC <=2047)
+				{
+					format.Set(10, true); // p
+				}	
+				else if(0 >= Target - BASE && Target - BASE <= 4095)
+				{
+					format.Set(9, true); // b
+				}			
+			}
+			else // register
+			{
+				int r1 = (int)StaticThings.RegistTable.get(OPERANDToken.nextToken());
+
+				format.SetRegister(r1, 0);
+			}
 			break;
 		}
 		
@@ -917,7 +1016,7 @@ public class ASEM
 {
 	static public void main(String[] args) //throws IOException
 	{
-		/*	Assembler operations	*/
+		/*	Assembler operations table	*/
 		StaticThings.OpTable.put("ADD",new OPTAB(0x18,3,0));StaticThings.OpTable.put("ADDF",new OPTAB(0x58,3,1));StaticThings.OpTable.put("ADDR",new OPTAB(0x90,2,1));
 		StaticThings.OpTable.put("AND",new OPTAB(0x40,3,0));StaticThings.OpTable.put("CLEAR",new OPTAB(0xB4,2,1));StaticThings.OpTable.put("COMP",new OPTAB(0x28,3,0));
 		StaticThings.OpTable.put("COMPF",new OPTAB(0x88,3,1));StaticThings.OpTable.put("COMPR",new OPTAB(0xA0,2,1));StaticThings.OpTable.put("DIV",new OPTAB(0x24,3,0));
@@ -939,12 +1038,16 @@ public class ASEM
 		StaticThings.OpTable.put("TD",new OPTAB(0xE0,3,0));StaticThings.OpTable.put("TIO",new OPTAB(0xF8,1,1));StaticThings.OpTable.put("TIX",new OPTAB(0x2C,3,0));
 		StaticThings.OpTable.put("TIXR",new OPTAB(0xB8,2,1));StaticThings.OpTable.put("WD",new OPTAB(0xDC,3,0));
 
-		/*	Assembler directives	*/
+		/*	Assembler directives table	*/
 		StaticThings.DirectTable.put("BASE",new OPTAB(1,0,0));  StaticThings.DirectTable.put("NOBASE",new OPTAB(2,0,0)); StaticThings.DirectTable.put("BYTE",new OPTAB(3,0,0)); StaticThings.DirectTable.put("END",new OPTAB(4,0,0));
 		StaticThings.DirectTable.put("EQU",new OPTAB(5,0,0)); StaticThings.DirectTable.put("LTORG",new OPTAB(6,0,0)); StaticThings.DirectTable.put("RESB",new OPTAB(7,0,0));   StaticThings.DirectTable.put("RESW",new OPTAB(8,0,0));
 		StaticThings.DirectTable.put("START",new OPTAB(9,0,0)); StaticThings.DirectTable.put("WORD",new OPTAB(10,0,0)); StaticThings.DirectTable.put("USE",new OPTAB(11,0,0));   StaticThings.DirectTable.put("CSECT",new OPTAB(12,0,0));
 		StaticThings.DirectTable.put("EXTREF",new OPTAB(13,0,0)); StaticThings.DirectTable.put("EXTDEF",new OPTAB(14,0,0));
 
+		/*	Assembler Register Table	*/
+		StaticThings.RegistTable.put("A", 0); StaticThings.RegistTable.put("X", 1); StaticThings.RegistTable.put("L", 2); StaticThings.RegistTable.put("B", 3);
+		StaticThings.RegistTable.put("S", 4); StaticThings.RegistTable.put("T", 5); StaticThings.RegistTable.put("F", 6);
+		
 		new MainWindow();
 	}
 }
