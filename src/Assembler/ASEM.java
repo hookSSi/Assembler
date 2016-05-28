@@ -17,14 +17,17 @@ import java.util.*;
 class TAB
 {
 	int address;	// LOCCTR
+	String value; // value
 	String op;	// Operation Code
 
-	TAB(int address, String op)
+	TAB(int address, String value,String op)
 	{
 		this.address = address;
+		this.value = value;
 		this.op = op;
 	}
 	public int GetAddress(){return address;}
+	public String GetValue(){return value;}
 	public String GetOp(){return op;}
 }
 
@@ -98,6 +101,7 @@ class Trecord
 		TRecordTable = new ArrayList<String>();
 		startAddress = StaticThings.StartAddress;
 		endAddress = 0;
+		count = 0;
 		TRecordTable.add("T");
 	}
 	public static void Append(String T) // need to fix!!!!!!
@@ -111,10 +115,12 @@ class Trecord
 		}
 		else if(StaticThings.LOCCTR - StaticThings.BeforeLOCCTR >= 1000 || count + length >= 60)
 		{
+			endAddress = StaticThings.BeforeLOCCTR;
 			count = 0;
 			TRecordTable.add("\nT"); //+GetDecToHex(StaticThings.LOCCTR)
 			TRecordTable.add(T);
 			count += length;
+			startAddress = StaticThings.LOCCTR;
 		}
 
 	}
@@ -239,16 +245,40 @@ class BitVector
 			Integer temp1 = new Integer(p_address % 256);
 			Integer temp2 = new Integer((p_address / 256) % 256);
 			Integer temp3 = new Integer((p_address / 256) / 256);
-			m_array[3] = temp3.byteValue();
+			m_array[1] = temp3.byteValue();
 			m_array[2] = temp2.byteValue();
-			m_array[1] = temp1.byteValue();
+			m_array[3] = temp1.byteValue();
+			Set(11, true); // e
 		}
 		else if(m_size == 3)
 		{
-			Integer temp1 = new Integer(p_address % 256);
-			Integer temp2 = new Integer(p_address / 256);
-			m_array[2] = temp1.byteValue();
-			m_array[1] = temp2.byteValue();
+			if(p_address >= 0)
+			{
+				Integer temp1 = new Integer(p_address % 256);
+				Integer temp2 = new Integer(p_address / 256);
+				m_array[2] = temp1.byteValue();
+				m_array[1] = temp2.byteValue();
+			}
+			else
+			{
+				Integer temp1 = new Integer(-p_address % 256);
+				Integer temp2 = new Integer(-p_address / 256);
+				m_array[2] = temp1.byteValue();
+				m_array[1] = temp2.byteValue();
+
+				for(int i = 12; i < 24; i++)
+				{
+					if(GetBit(i) > 0)
+						Set(i, false);
+					else
+						Set(i,true);
+				}
+				//int outofindex = GetBit(10);
+				m_array[2]++;
+//				if(GetBit(10) != outofindex)
+//					Set(11,false);
+
+			}
 		}
 
 	}
@@ -260,19 +290,8 @@ class BitVector
 	String BitToString()
 	{
 		String str = "";
-		if(m_size >= 3)
-		{
-			str = GetDecToHex(m_array[0]);
-			for(int i = 8; i < m_size * 8; i = i + 4)
-				str = str + GetDecToHex((GetBit(i) * 8 + GetBit(i+1) * 4 + GetBit(i+2) * 2 + GetBit(i+3)));
-		}
-		else
-		{
-			str = GetDecToHex(m_array[0]);
-			for(int i = 8; i < m_size * 8; i = i + 4)
-				str = str + GetDecToHex((GetBit(i) * 8 + GetBit(i+1) * 4 + GetBit(i+2) * 2 + GetBit(i+3)));
-		}
-
+		for(int i = 0; i < m_size * 8; i = i + 4)
+			str = str + GetDecToHex((GetBit(i) * 8 + GetBit(i+1) * 4 + GetBit(i+2) * 2 + GetBit(i+3)));
 		return str;
 	}
 	void ClearAll()
@@ -453,7 +472,7 @@ class MainWindow implements ActionListener
 							Integer stringtoint = Integer.parseInt(OPERAND,16);
 							StaticThings.LOCCTR = stringtoint;
 							StaticThings.StartAddress = stringtoint;
-							StaticThings.Table.put("START", new TAB(StaticThings.LOCCTR,OPCODE));
+							StaticThings.Table.put("START", new TAB(StaticThings.LOCCTR, OPERAND, OPCODE));
 							if(LABEL.length() < 6)
 							{
 								int temp = 6 - LABEL.length();
@@ -503,7 +522,7 @@ class MainWindow implements ActionListener
 							}
 							else if(LABEL != null && !StaticThings.Table.containsKey(LABEL))
 							{
-								StaticThings.Table.put(LABEL, new TAB(StaticThings.LOCCTR,OPCODE));	 // input LABEL to Symbol Table
+								StaticThings.Table.put(LABEL, new TAB(StaticThings.LOCCTR,OPERAND,OPCODE));	 // input LABEL to Symbol Table
 								TAB symbol = (TAB)StaticThings.Table.get(LABEL);
 								System.out.println(LABEL + "\t" + GetDecToHex(symbol.GetAddress()));
 							}
@@ -687,7 +706,6 @@ class MainWindow implements ActionListener
 								StaticThings.LOCCTR += temp.oplength + 1;
 
 								BitVector format = new BitVector(4);
-								format.Set(11, true); // e
 								format.SetOp(temp.op);
 								char ch = 0;
 								if(OPERAND != null)
@@ -698,29 +716,40 @@ class MainWindow implements ActionListener
 									if(ch == '#')	// Immediately addressing
 									{
 										format.Set(6, false); // i
-										if(IsStringInt(OPERAND)) // OPREAND is integer
+										if(IsStringInt(OPERAND)) // OPERAND is integer
 										{
 											format.SetAddress(Integer.parseInt(OPERAND));
 											Trecord.Append(format.BitToString()); // store T record into table
 										}
 										else // OPERAND is Symbol
 										{
-											format.SetAddress(Integer.parseInt(OPERAND));
+											TAB symbol = (TAB)StaticThings.Table.get(OPERAND);
+											format.SetAddress(symbol.GetAddress());
 											Trecord.Append(format.BitToString());
 										}
 									}
 									else // Indirect addressing
 									{
 										format.Set(7, false);
-										if(IsStringInt(OPERAND))
+										if(IsStringInt(OPERAND))	// OPERAND is integer
 										{
-											format.SetAddress(Integer.parseInt(OPERAND));
-											Trecord.Append(format.BitToString());
+											int Target = Integer.parseInt(OPERAND);
+											format.SetAddress(Target);
+											Trecord.Append(format.BitToString()); // store T record into table
 										}
-										else
+										else	// OPERAND is Symbol
 										{
-											TAB symbol = (TAB)StaticThings.Table.get(Integer.parseInt(OPERAND));
-											format.SetAddress(symbol.GetAddress());
+											TAB symbol = (TAB)StaticThings.Table.get(OPERAND);
+											if(IsStringInt(symbol.GetValue()))
+											{
+												OPTAB op = (OPTAB)StaticThings.OpTable.get(symbol.op);
+												format.SetAddress(op.oplength * Integer.parseInt(symbol.GetValue()));
+											}
+											else
+											{
+												TAB symbol2 = (TAB)StaticThings.Table.get(symbol.GetValue());
+												format.SetAddress(symbol2.GetAddress());
+											}
 											Trecord.Append(format.BitToString());
 										}
 									}
@@ -732,7 +761,7 @@ class MainWindow implements ActionListener
 								}
 								else
 								{
-									OperandHandle(OPERAND,format);
+									OperandHandle(OPERAND, format);
 									Trecord.Append(format.BitToString());
 								}
 
@@ -745,57 +774,126 @@ class MainWindow implements ActionListener
 								/*	Locctr add handle	*/
 								StaticThings.BeforeLOCCTR = StaticThings.LOCCTR;
 								StaticThings.LOCCTR += temp.oplength;
-
-								BitVector format = new BitVector(temp.oplength);
-								format.SetOp(temp.op);
-								char ch = 0;
-								if(OPERAND != null)
-									ch = OPERAND.charAt(0);
-								else
-									OPERAND = "0";
-								if(ch == '#' || ch == '@')
+								if(temp.oplength == 3)	//	Format 3
 								{
-									OPERAND = OPERAND.substring(1);
-									if(ch == '#')	// Immediately addressing
+									BitVector format = new BitVector(temp.oplength);
+									format.SetOp(temp.op);
+									char ch = 0;
+									if(OPERAND != null)
+										ch = OPERAND.charAt(0);
+									else
+										OPERAND = "0";
+									if(ch == '#' || ch == '@')
 									{
-										format.Set(6, false); // i
-										if(IsStringInt(OPERAND)) // OPREAND is integer
+										OPERAND = OPERAND.substring(1);
+										if(ch == '#')	// Immediately addressing
 										{
-											format.SetAddress(Integer.parseInt(OPERAND));
-											Trecord.Append(format.BitToString()); // store T record into table
+											format.Set(6, false); // i
+											if(IsStringInt(OPERAND)) // OPREAND is integer
+											{
+												int Target = Integer.parseInt(OPERAND);
+												format.SetAddress(Target);
+												Trecord.Append(format.BitToString()); // store T record into table
+											}
+											else // OPERAND is Symbol
+											{
+												TAB symbol = (TAB)StaticThings.Table.get(OPERAND);
+												int Target = symbol.GetAddress();
+												format.SetAddress(Target);
+												int PC = StaticThings.LOCCTR;
+												int BASE = StaticThings.BaseAddress;
+
+												if(-2048 <= Target - PC && Target - PC < 2048)
+												{
+													format.SetAddress(Target - PC);
+													format.Set(10, true); // p
+												}
+												else if(0 <= Target - BASE && Target - BASE < 4096)
+												{
+													format.SetAddress(Target - BASE);
+													format.Set(9, true); // b
+												}
+												else
+												{
+													StaticThings.Errorflag = -1; // Out of index
+												}
+												Trecord.Append(format.BitToString()); // store T record into table
+											}
 										}
-										else // OPERAND is Symbol
+										else // Indirect addressing
 										{
-											TAB symbol = (TAB)StaticThings.Table.get(OPERAND);
-											format.SetAddress(symbol.GetAddress());
-											Trecord.Append(format.BitToString());
+											format.Set(7, false);
+											if(IsStringInt(OPERAND))
+											{
+												int Target = Integer.parseInt(OPERAND);
+												format.SetAddress(Target);
+												Trecord.Append(format.BitToString()); // store T record into table
+											}
+											else
+											{
+												TAB symbol = (TAB)StaticThings.Table.get(OPERAND);
+												int Target = symbol.GetAddress();
+												int PC = StaticThings.LOCCTR;
+												int BASE = StaticThings.BaseAddress;
+
+												if(-2048 <= Target - PC && Target - PC < 2048)
+												{
+													format.SetAddress(Target - PC);
+													format.Set(10, true); // p
+												}
+												else if(0 <= Target - BASE && Target - BASE < 4096)
+												{
+													format.SetAddress(Target - BASE);
+													format.Set(9, true); // b
+												}
+												else
+												{
+													StaticThings.Errorflag = -1; // Out of index
+												}
+												Trecord.Append(format.BitToString()); // store T record into table
+											}
 										}
 									}
-									else // Indirect addressing
+									else if(IsStringInt(OPERAND))		// integer
 									{
-										format.Set(7, false);
-										if(IsStringInt(OPERAND))
+										int Target = Integer.parseInt(OPERAND);
+										int PC = StaticThings.LOCCTR;
+										int BASE = StaticThings.BaseAddress;
+
+										if(-2048 <= Target - PC && Target - PC < 2048)
 										{
-											format.SetAddress(Integer.parseInt(OPERAND));
-											Trecord.Append(format.BitToString());
+											format.SetAddress(Target - PC);
+											format.Set(10, true); // p
+										}
+										else if(0 <= Target - BASE && Target - BASE < 4096)
+										{
+											format.SetAddress(Target - BASE);
+											format.Set(9, true); // b
 										}
 										else
 										{
-											TAB symbol = (TAB)StaticThings.Table.get(OPERAND);
-											OPTAB opcode = (OPTAB)StaticThings.DirectTable.get(symbol.GetOp());
-											format.SetAddress(opcode.GetLength());
-											Trecord.Append(format.BitToString());
+											StaticThings.Errorflag = -1; // Out of index
 										}
+										Trecord.Append(format.BitToString()); // store T record into table
+									}
+									else
+									{
+										OperandHandle(OPERAND,format);
+										Trecord.Append(format.BitToString());
 									}
 								}
-								else if(IsStringInt(OPERAND))		// number
+								else if(temp.oplength == 2)
 								{
-									format.SetAddress(Integer.parseInt(OPERAND));
+									BitVector format = new BitVector(temp.oplength);
+									format.SetOp(temp.op);
+									OperandHandle(OPERAND,format);
 									Trecord.Append(format.BitToString());
 								}
-								else
+								else if(temp.oplength == 1)
 								{
-									OperandHandle(OPERAND,format);
+									BitVector format = new BitVector(temp.oplength);
+									format.SetOp(temp.op);
+									format.SetRegister((int)StaticThings.RegistTable.get(OPERAND), 0);
 									Trecord.Append(format.BitToString());
 								}
 							}
@@ -804,7 +902,7 @@ class MainWindow implements ActionListener
 							{
 								if(OPCODE.equals("RESW") || OPCODE.equals("RESB"))
 								{
-									/*	Locctr add handle	*/
+									/*	Locctr add handle variable	*/
 									int n = 0;
 
 									if(IsStringInt(OPERAND))
@@ -841,11 +939,20 @@ class MainWindow implements ActionListener
 										{
 											StaticThings.BeforeLOCCTR = StaticThings.LOCCTR;
 											StaticThings.LOCCTR += 1 * (OPERAND.length()-3);
+											String temp = "";
+
+											for(int index = 2; index < OPERAND.length() - 1; index++ )
+											{
+												temp += (Integer.toHexString(OPERAND.charAt(index))).toUpperCase();
+											}
+											Trecord.Append(temp);
 										}
 										else if(OPERAND.charAt(0) == 'X')
 										{
 											StaticThings.BeforeLOCCTR = StaticThings.LOCCTR;
 											StaticThings.LOCCTR += 1 * (OPERAND.length()-3)/2;
+
+											Trecord.Append(OPERAND.substring(2, OPERAND.length() - 1));
 										}
 										else
 										{
@@ -855,7 +962,8 @@ class MainWindow implements ActionListener
 								}
 								else if(OPCODE.equals("BASE"))
 								{
-
+									TAB symbol = (TAB)StaticThings.Table.get(OPERAND);
+									StaticThings.BaseAddress = symbol.GetAddress();
 								}
 							}
 						}
@@ -916,16 +1024,15 @@ class MainWindow implements ActionListener
 
 		return hex.toUpperCase();
 	}
-	char OperandHandle(String OPERAND,BitVector format) // Only handle OPERAND is Symbol
+
+	char OperandHandle(String OPERAND,BitVector format) // Only handle OPERAND has operation
 	{
-		StringTokenizer OPERANDToken = null;
+		StringTokenizer OPERANDToken = new StringTokenizer(OPERAND);
 		char operation = 0;
 
 		/*	Searching Operation	*/
 		for(int index = 0; index < OPERAND.length(); index++)
 		{
-			OPERANDToken = new StringTokenizer(OPERAND);
-
 			switch(OPERAND.charAt(index))
 			{
 			case ',':OPERANDToken = new StringTokenizer(OPERAND,","); operation = ',';
@@ -934,7 +1041,7 @@ class MainWindow implements ActionListener
 				index = OPERAND.length();break;
 			case '-':OPERANDToken = new StringTokenizer(OPERAND,"-"); operation = '-';
 				index = OPERAND.length();break;
-			case '=':OPERANDToken = new StringTokenizer(OPERAND,"="); operation = '=';
+			case '=':OPERANDToken = new StringTokenizer(OPERAND,"'"); operation = '=';
 				index = OPERAND.length();break;
 			}
 		}
@@ -943,22 +1050,54 @@ class MainWindow implements ActionListener
 		switch(operation)
 		{
 		case ',' :
-			if(format.m_size == 3)
+			if(format.m_size == 4)
 			{
 				format.Set(8, true); // x
+				int Target = 0;
+				String operand = OPERANDToken.nextToken();
+				if(IsStringInt(operand))
+				{
+					Target = Integer.parseInt(operand);
+					format.SetAddress(Target);
+				}
+				else
+				{
+					TAB symbol = (TAB)StaticThings.Table.get(operand);
+					format.SetAddress(symbol.GetAddress());
+					Target = symbol.GetAddress();
+				}
+			}
+			else if(format.m_size == 3)
+			{
+				String operand = OPERANDToken.nextToken();
 				int PC = StaticThings.LOCCTR;
 				int BASE = StaticThings.BaseAddress;
-				TAB symbol = (TAB)StaticThings.Table.get(OPERANDToken.nextToken());
-				int Target = symbol.GetAddress();
-
-				if(-2048 >= Target - PC && Target - PC <=2047)
+				int Target = 0;
+				if(IsStringInt(operand))
 				{
+					Target = Integer.parseInt(operand);
+				}
+				else
+				{
+					TAB symbol = (TAB)StaticThings.Table.get(operand);
+					Target = symbol.GetAddress();
+				}
+
+				if(-2048 <= Target - PC && Target - PC < 2048)
+				{
+					format.SetAddress(Target - PC);
 					format.Set(10, true); // p
 				}
-				else if(0 >= Target - BASE && Target - BASE <= 4095)
+				else if(0 <= Target - BASE && Target - BASE < 4096)
 				{
+					format.SetAddress(Target - BASE);
 					format.Set(9, true); // b
 				}
+				else
+				{
+					StaticThings.Errorflag = -1; // Out of index
+				}
+				format.Set(8, true); // x
 			}
 			else // register
 			{
@@ -969,42 +1108,198 @@ class MainWindow implements ActionListener
 			}
 			break;
 		case '+':
+			if(format.m_size == 4)
+			{
+				String a = OPERANDToken.nextToken();
+				String b = OPERANDToken.nextToken();
+				int result = 0;
+
+				if(IsStringInt(a))
+				{
+					result += Integer.parseInt(a);
+				}
+				else
+				{
+					TAB symbol = (TAB)StaticThings.Table.get(a);
+					result += symbol.GetAddress();
+				}
+				if(IsStringInt(a))
+				{
+					result += Integer.parseInt(a);
+				}
+				else
+				{
+					TAB symbol = (TAB)StaticThings.Table.get(a);
+					result += symbol.GetAddress();
+				}
+				format.SetAddress(result);
+			}
+			else if(format.m_size == 3)
+			{
+				String a = OPERANDToken.nextToken();
+				String b = OPERANDToken.nextToken();
+				int PC = StaticThings.LOCCTR;
+				int BASE = StaticThings.BaseAddress;
+				int result = 0;
+
+				if(IsStringInt(a))
+				{
+					result += Integer.parseInt(a);
+				}
+				else
+				{
+					TAB symbol = (TAB)StaticThings.Table.get(a);
+					result += symbol.GetAddress();
+				}
+				if(IsStringInt(a))
+				{
+					result += Integer.parseInt(a);
+				}
+				else
+				{
+					TAB symbol = (TAB)StaticThings.Table.get(a);
+					result += symbol.GetAddress();
+				}
+
+				if(-2048 <= result - PC && result - PC < 2048)
+				{
+					format.SetAddress(result - PC);
+					format.Set(10, true); // p
+				}
+				else if(0 <= result - BASE && result - BASE < 4096)
+				{
+					format.SetAddress(result - BASE);
+					format.Set(9, true); // b
+				}
+				else
+				{
+					StaticThings.Errorflag = -1; // Out of index
+				}
+			}
 			break;
 		case '-':
+			if(format.m_size == 4)
+			{
+				String a = OPERANDToken.nextToken();
+				String b = OPERANDToken.nextToken();
+				int result = 0;
+
+				if(IsStringInt(a))
+				{
+					result += Integer.parseInt(a);
+				}
+				else
+				{
+					TAB symbol = (TAB)StaticThings.Table.get(a);
+					result += symbol.GetAddress();
+				}
+				if(IsStringInt(b))
+				{
+					result += Integer.parseInt(b);
+				}
+				else
+				{
+					TAB symbol = (TAB)StaticThings.Table.get(b);
+					result += symbol.GetAddress();
+				}
+				format.SetAddress(result);
+			}
+			else if(format.m_size == 3)
+			{
+				String a = OPERANDToken.nextToken();
+				String b = OPERANDToken.nextToken();
+				int PC = StaticThings.LOCCTR;
+				int BASE = StaticThings.BaseAddress;
+				int result = 0;
+
+				if(IsStringInt(a))
+				{
+					result += Integer.parseInt(a);
+				}
+				else
+				{
+					TAB symbol = (TAB)StaticThings.Table.get(a);
+					result += symbol.GetAddress();
+				}
+				if(IsStringInt(b))
+				{
+					result -= Integer.parseInt(b);
+				}
+				else
+				{
+					TAB symbol = (TAB)StaticThings.Table.get(b);
+					result -= symbol.GetAddress();
+				}
+
+				if(-2048 <= result - PC && result - PC < 2048)
+				{
+					format.SetAddress(result - PC);
+					format.Set(10, true); // p
+				}
+				else if(0 <= result - BASE && result - BASE < 4096)
+				{
+					format.SetAddress(result - BASE);
+					format.Set(9, true); // b
+				}
+				else
+				{
+					StaticThings.Errorflag = -1; // Out of index
+				}
+			}
 			break;
 		case '=':
 			break;
-		case 0:		// Default
+		case 0:
 			if(format.m_size == 4)
 			{
-				TAB symbol = (TAB)StaticThings.Table.get(OPERAND);
-				int Target = symbol.GetAddress();
-				format.SetAddress(Target);
+				int Target = 0;
+				String operand = OPERANDToken.nextToken();
+				if(IsStringInt(operand))
+				{
+					Target = Integer.parseInt(operand);
+					format.SetAddress(Target);
+				}
+				else
+				{
+					TAB symbol = (TAB)StaticThings.Table.get(operand);
+					format.SetAddress(symbol.GetAddress());
+					Target = symbol.GetAddress();
+				}
 			}
 			else if(format.m_size == 3)
 			{
 				int PC = StaticThings.LOCCTR;
 				int BASE = StaticThings.BaseAddress;
-				TAB symbol = (TAB)StaticThings.Table.get(OPERAND);
-				int Target = symbol.address;
-
-				if(-2048 >= Target - PC && Target - PC <=2047)
+				int Target = 0;
+				String operand = OPERANDToken.nextToken();
+				if(IsStringInt(operand))
 				{
-					format.Set(10, true); // p
+					Target = Integer.parseInt(operand);
+				}
+				else
+				{
+					TAB symbol = (TAB)StaticThings.Table.get(operand);
+					Target = symbol.GetAddress();
+				}
+
+				if(-2048 <= (Target - PC) && (Target - PC) < 2048)
+				{
 					format.SetAddress(Target - PC);
+					format.Set(10, true); // p
 				}
-				else if(0 >= Target - BASE && Target - BASE <= 4095)
+				else if(0 <= Target - BASE && Target - BASE < 4096)
 				{
-					format.Set(9, true); // b
-					System.out.println(Target - BASE);
 					format.SetAddress(Target - BASE);
+					format.Set(9, true); // b
 				}
-
+				else
+				{
+					StaticThings.Errorflag = -1; // Out of index
+				}
 			}
-			else // register
+			else
 			{
 				int r1 = (int)StaticThings.RegistTable.get(OPERANDToken.nextToken());
-
 				format.SetRegister(r1, 0);
 			}
 			break;
